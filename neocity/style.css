@@ -1,0 +1,166 @@
+/* CSS is how you can add style to your website, such as colors, fonts, and positioning of your
+   HTML content. To learn how to do something, just try searching Google for questions like
+   "how to change link color." */
+:root {
+  --background: #1f1f1f;
+  --weak: #c586c0;
+  --medium: #9cdcfe;
+  --strong: #569cd6;
+  --function: #dcdcaa;
+  --group1: #ffd700;
+  --group2: #da70d6;
+  --group3: #179fff;
+  --class: #4ec9b0;
+  --error: #f14c4c;
+  --operator: #d4d4d4;
+  --line-number: #6e7681;
+  --line: #404040;
+  --focus-line: #707070;
+  --comment: #6a9955;
+}
+
+body {
+  background-color: var(--background);
+  background-attachment: fixed;
+  font-family: "Roboto Mono";
+  font-weight: 512;
+  font-size: 16px;
+  color: var(--medium);
+  line-height: 1.5;
+}
+
+#numbers {
+  height: 100%; /* Full-height: remove this if you want "auto" height */
+  width: 3em; /* Set the width of the sidebar */
+  float: left;
+  z-index: 1; /* Stay on top */
+  top: 0; /* Stay at the top */
+  left: 0;
+  overflow-x: hidden; /* Disable horizontal scroll */
+  padding-top: 1em;
+}
+
+#content {
+  padding-top: 1em;
+  margin-left: 3em;
+  /*border-image: linear-gradient(red, blue) 10%/10%;*/
+}
+
+ol {
+  list-style: none;
+  counter-reset: item;
+  margin: 0;
+  padding-left: 0;
+}
+ 
+ol > li {
+  counter-increment: item;
+  padding-left: 1em;
+}
+
+ol > li:before {
+  padding-right: 1em;
+  content: counter(item);
+  text-align: center;
+  display: inline-block;
+  color: var(--line-number);
+}
+
+ul {
+  list-style: none;
+  margin: 0;
+  padding-left: 0;
+}
+
+ul > li {
+  padding-left: 0;
+}
+
+ul > li:before {
+  content: "│";
+  padding-right: 1em;
+  color: var(--group1);
+}
+
+.iframe-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  padding-top: 75%;
+}
+
+#blog-content {
+  overflow-wrap: break-word;
+}
+
+iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+}
+
+p {
+  margin: 0;
+}
+
+h1,h2,h3,h4,h5,h6 {
+  color: var(--class);
+  font-size: 1em;
+  margin: 0;
+}
+
+em {
+  color: var(--weak);
+  font-style: normal;
+}
+
+strong {
+  color: var(--strong);
+  font-style: normal;
+}
+
+a {
+  text-decoration: none;
+  color: var(--function);
+}
+/* a:after {
+  content: "()";
+  color: var(--operator);
+} */
+
+label {
+  color: var(--strong);
+}
+
+input {
+  padding: 0;
+  background-color: var(--background);
+  border-color: var(--line);
+  color: var(--operator);
+  border-width: 1px;
+  width: 90%;
+  font-family: "Roboto Mono";
+  font-weight: 512;
+  font-size: 16px;
+}
+
+input:focus {
+  outline-color: var(--focus-line);
+  outline: solid thin;
+}
+
+button {
+  border: none;
+  /*text-decoration: none;*/
+  /*display: inline-block;*/
+  color: var(--strong);
+  background-color: var(--background);
+  padding: 0px;
+  font-family: "Roboto Mono";
+  font-weight: 512;
+  font-size: 16px;
+}
