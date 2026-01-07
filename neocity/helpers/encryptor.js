@@ -1,31 +1,35 @@
-const outputContent = document.getElementById("encrypted-blog-content");
-const key = document.getElementById("encryption-key-input");
-const inputContent = document.getElementById("blog-content-input");
+const tagRegex = /\<[^\>]\>/g;
+const asciiInterval = [32, 126] // TODO: exclude certain characters from this range
 
-function encrypt() {
-  outputContent.innerHTML = inputContent.value;
-  if (!key.value || !inputContent.value) return;
+function encrypt(plaintext, key) {
+  if (!key || !plaintext) return;
 
-  const regex = /\<[^\>]\>/g;
   var matches = []
-  while ((match = regex.exec(str)) != null) {
+  while ((match = regex.exec(plaintext)) != null) {
     console.log("match found at " + match.index);
     matches.push(match)
   }
 
   let charCodes = [];
-  for (let i = 0; i < inputContent.value.length; i++) {
+  let i = 0;
+  while (i < plaintext.length) {
     // if character is in a tag, skip
-    var tag = matches.find((it) => i == it.index)
+    var tag = matches.find((it) => it.index == i);
     if (tag) {
-      i += tag.match.length
-      // TODO: add charCodes from the tag
+      i += tag[0].length;
+      console.log("TAG:", tag[0]);
+      for (let c = 0; c < tag[0].length; c++) {
+        console.log(tag[0].charAt(c));
+        charCodes.push(tag[0].charAt(c).charCodeAt());
+      }
+    } else {
+      i++;
+      charCodes.push(plaintext.charCodeAt(i) - key.charCodeAt(i % key.length)); // TODO: mod output to within the asciiInterval
     }
-
-    charCodes.push(inputContent.value.charCodeAt(i) - key.value.charCodeAt(i % key.value.length));
   }
-  const cipherText = String.fromCharCode(...charCodes);
-  console.log(cipherText);
-  outputContent.textContent = btoa(cipherText);
-  console.log(btoa(cipherText));
+  console.log("CHAR CODES:", charCodes);
+  const ciphertext = String.fromCharCode(...charCodes);
+  console.log("CIPHERTEXT:", ciphertext);
+  console.log("BTOA:", btoa(ciphertext));
+  return ciphertext;
 }
