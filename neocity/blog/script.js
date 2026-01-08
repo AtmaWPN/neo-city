@@ -36,7 +36,7 @@ const postsJson = fetch(`${window.location.origin}/blog/posts.json`)
     content.innerHTML = json.posts[blogPost].content;
     return json;
   });
-  
+
 function decrypt() {
   postsJson.then((json) => {
     const queryParams = new URLSearchParams(window.location.search);

@@ -1,7 +1,8 @@
 const tagRegex = /\<[^\>]\>/g;
 const asciiInterval = [32, 126] // TODO: exclude certain characters from this range
+const charCount = asciiInterval[1] - asciiInterval[0] + 1
 
-function encrypt(plaintext, key) {
+function encipher(plaintext, key) {
   if (!key || !plaintext) return;
 
   var matches = []
@@ -32,4 +33,8 @@ function encrypt(plaintext, key) {
   console.log("CIPHERTEXT:", ciphertext);
   console.log("BTOA:", btoa(ciphertext));
   return ciphertext;
+}
+
+function decipher(ciphertext, key) {
+
 }
