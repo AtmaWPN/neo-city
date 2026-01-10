@@ -64,11 +64,11 @@ function actualMod(input, mod) {
 
 function escapeJSON(text) {
   return String(text)
+    .replaceAll("\\", "\\\\")
     .replaceAll("\b", "\\b")
     .replaceAll("\f", "\\f")
     .replaceAll("\n", "\\n")
     .replaceAll("\r", "\\r")
     .replaceAll("\t", "\\t")
-    .replaceAll('"', '\\"')
-    .replaceAll("\\", "\\\\")
+    .replaceAll('"', '\\\"')
 }

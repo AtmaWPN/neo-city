@@ -4,7 +4,6 @@ function encrypt() {
   const key = document.getElementById("encryption-key-input");
   const output = document.getElementById("encrypted-blog-content");
   const mode = document.querySelector('input[name="mode"]:checked').value;
-  console.log(mode);
 
   const processedCiphertext = mode === "decipher" ? decipher(input.value, key.value) : encipher(input.value, key.value);
 
