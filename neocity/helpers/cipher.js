@@ -5,14 +5,10 @@ const includedChars = [32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,
 const charCount = includedChars.length;
 
 function encipher(plaintext, key) {
-  console.log("plaintext", plaintext);
-  console.log("key", key);
-
   if (!key || !plaintext) return plaintext;
 
   var matches = []
   while ((match = tagRegex.exec(plaintext)) != null) {
-    console.log("match found at " + match.index);
     matches.push(match);
   }
 
@@ -22,34 +18,24 @@ function encipher(plaintext, key) {
     var tag = matches.find((it) => it.index == i);
     if (tag) {
       i += tag[0].length;
-      console.log("TAG:", tag[0]);
       for (let c = 0; c < tag[0].length; c++) {
-        console.log(tag[0].charAt(c));
         charCodes.push(tag[0].charAt(c).charCodeAt());
       }
     } else {
-      const output = actualMod((includedChars.indexOf(plaintext.charCodeAt(i)) - includedChars.indexOf(key.charCodeAt(i % key.length))), charCount);
-      console.log(plaintext.charCodeAt(i));
-      console.log(key.charCodeAt(i % key.length));
-      console.log("output", output, includedChars[output]);
+      const output = actualMod((includedChars.indexOf(plaintext.charCodeAt(i)) - key.charCodeAt(i % key.length)), charCount);
       charCodes.push(includedChars[output]);
       i++;
     }
   }
-  console.log("CHAR CODES:", charCodes);
   const ciphertext = String.fromCharCode(...charCodes);
   return ciphertext;
 }
 
 function decipher(ciphertext, key) {
-  console.log("ciphertext", ciphertext);
-  console.log("key", key);
-
   if (!key || !ciphertext) return ciphertext;
 
   var matches = []
   while ((match = tagRegex.exec(ciphertext)) != null) {
-    console.log("match found at " + match.index);
     matches.push(match);
   }
 
@@ -59,45 +45,21 @@ function decipher(ciphertext, key) {
     var tag = matches.find((it) => it.index == i);
     if (tag) {
       i += tag[0].length;
-      console.log("TAG:", tag[0]);
       for (let c = 0; c < tag[0].length; c++) {
-        console.log(tag[0].charAt(c));
         charCodes.push(tag[0].charAt(c).charCodeAt());
       }
     } else {
-      const output = actualMod((includedChars.indexOf(ciphertext.charCodeAt(i)) + includedChars.indexOf(key.charCodeAt(i % key.length))), charCount);
-      console.log(ciphertext.charCodeAt(i));
-      console.log(key.charCodeAt(i % key.length));
-      console.log("output", output, includedChars[output]);
+      const output = actualMod((includedChars.indexOf(ciphertext.charCodeAt(i)) + key.charCodeAt(i % key.length)), charCount);
       charCodes.push(includedChars[output]);
       i++;
     }
   }
-  console.log("CHAR CODES:", charCodes);
   const plaintext = String.fromCharCode(...charCodes);
   return plaintext;
 }
 
 function actualMod(input, mod) {
   return (input%mod+mod)%mod
-}
-
-function escapeHTML(text) {
-  return String(text)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#39;");
-}
-
-function unescapeHTML(text) {
-  return String(text)
-    .replaceAll("&amp;", "&")
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&#39;", "'");
 }
 
 function escapeJSON(text) {
