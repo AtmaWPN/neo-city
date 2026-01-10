@@ -15,10 +15,15 @@
   <body class="page">
     <div id="content">
       <h2>Coding projects small enough to run in the browser</h2>
-      <h3>Blog Encryptor</h3>
-      <label for="blog-content-input">Blog Content <input id="blog-content-input" /></label>
-      
-      <label for="encryption-key-input">Encryption Key <input id="encryption-key-input" /></label>
+      <h3>Blog Cipher</h3>
+
+      <div>
+        <label>Encipher<input type="radio" id="encipher" value="encipher" name="mode" checked /></label><br>
+        <label>Decipher<input type="radio" id="decipher" value="decipher" name="mode" /></label>
+      </div>
+
+      <label for="blog-content-input">Input: <input id="blog-content-input" /></label><br>
+      <label for="encryption-key-input">Key:   <input id="encryption-key-input" /></label><br>
       
       <button onclick="encrypt()">submit</button>
       <h4>Result:</h4>

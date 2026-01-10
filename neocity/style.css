@@ -142,15 +142,25 @@ input {
   border-color: var(--line);
   color: var(--operator);
   border-width: 1px;
-  width: 90%;
   font-family: "Roboto Mono";
   font-weight: 512;
   font-size: 16px;
 }
 
+input[type=text] {
+  width: 90%
+}
+input:not([type]) {
+  width: 90%
+}
+
 input:focus {
   outline-color: var(--focus-line);
   outline: solid thin;
+}
+
+input[type=radio]:focus {
+  outline: none;
 }
 
 button {
