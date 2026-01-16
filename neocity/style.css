@@ -7,6 +7,7 @@
   --medium: #9cdcfe;
   --strong: #569cd6;
   --function: #dcdcaa;
+  --string: #ce9178;
   --group1: #ffd700;
   --group2: #da70d6;
   --group3: #179fff;
@@ -134,6 +135,7 @@ a {
 
 label {
   color: var(--strong);
+  margin-right: 1em;
 }
 
 input {
@@ -147,6 +149,12 @@ input {
   font-size: 16px;
 }
 
+input[type=radio] {
+  accent-color: var(--string);
+  background-color: var(--background);
+  background: var(--background);
+  color: var(--background);
+}
 input[type=text] {
   width: 90%
 }
