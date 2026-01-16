@@ -15,26 +15,35 @@
   <body class="page">
     <div id="content">
       <h2>Coding projects small enough to run in the browser</h2>
-      <h3>Blog Cipher</h3>
+      <br>
+      <h3>Cipher</h3>
+
+      <p>This is a neat little cipher that I made for encrypting HTML content.</p>
+      <p>I based it on an old cipher that I read about and modified to skip HTML tags and use the full range of printable ASCII characters.</p>
+      <p>I use this cipher for information that I want to be difficult but possible to access.</p>
 
       <div>
-        <label>Encipher<input type="radio" id="encipher" value="encipher" name="mode" checked /></label><br>
-        <label>Decipher<input type="radio" id="decipher" value="decipher" name="mode" /></label>
+        <button class="function" onclick="toggleMode()">ToggleMode()</button><br>
+        <label>Current Mode:</label><span class="string" id="cipher-mode">Encipher</span>
       </div>
 
-      <label for="blog-content-input">Input: <input id="blog-content-input" /></label><br>
-      <label for="encryption-key-input">Key:   <input id="encryption-key-input" /></label><br>
+      <label for="blog-content-input">Input:</label><input id="blog-content-input" /><br>
+      <label for="encryption-key-input">Key:</label><input id="encryption-key-input" /><br>
       
       <button onclick="encrypt()">submit</button>
       <h4>Result:</h4>
       <div id="encrypted-blog-content"></div>
-      
-      <a href="index.html">main page</a>
     </div>
 
     <script src="helpers/cipher.js"></script>
     <script src="coding/encryptor.js"></script>
+    <script src="helpers/style_processor.js"></script>
     <script src="helpers/line_numbers.js"></script>
-    <a href="https://neocities.org/" style="position:fixed; inset-inline-end: 1em; inset-block-end: 1em;"><img src="assets/neocities.png"></a>
+    <a href="index.html" style="display:flex; cursor:pointer; align-items:center; position:fixed; inset-inline-start: 1em; inset-block-end: 1em;"><img src="favicon.ico"><em style="margin-left:1em;">RETURN</em></a>
+    <div style="display:flex; flex-direction: column; align-items:flex-end; position:fixed; inset-inline-end: 1em; inset-block-end: 1em;">
+      <a target="_blank" rel="noopener noreferrer" href="https://github.com/AtmaWPN" style="display:flex; align-items:center;"><img src="assets/GitHub_Invertocat_White.svg" height="64px"></a>
+      <a target="_blank" rel="noopener noreferrer" href="https://atmawpn.itch.io/" style="margin-top:1em; margin-bottom: 1em;"><img src="assets/itchio-logo-textless-itchy-carnation.svg" height="64px"></a>
+      <a target="_blank" rel="noopener noreferrer" href="https://neocities.org/"><img src="assets/neocities.png"></a>
+    </div>
   </body>
 </html>
