@@ -1,6 +1,4 @@
-/* CSS is how you can add style to your website, such as colors, fonts, and positioning of your
-   HTML content. To learn how to do something, just try searching Google for questions like
-   "how to change link color." */
+
 :root {
   --background: #1f1f1f;
   --weak: #c586c0;
@@ -20,13 +18,7 @@
   --comment: #6a9955;
 }
 
-.string {
-  color: var(--string);
-}
-.operator {
-  color: var(--operator);
-}
-
+/* Element-Level */
 body {
   background-color: var(--background);
   background-attachment: fixed;
@@ -37,21 +29,31 @@ body {
   line-height: 1.5;
 }
 
-#numbers {
-  height: 100%; /* Full-height: remove this if you want "auto" height */
-  width: 3em; /* Set the width of the sidebar */
-  float: left;
-  z-index: 1; /* Stay on top */
-  top: 0; /* Stay at the top */
-  left: 0;
-  overflow-x: hidden; /* Disable horizontal scroll */
-  padding-top: 1em;
+p {
+  margin: 0;
+  text-indent: -1.25em;
+  padding-left: 1.25em;
 }
 
-#content {
-  padding-top: 1em;
-  margin-left: 3em;
-  /*border-image: linear-gradient(red, blue) 10%/10%;*/
+h1,h2,h3,h4,h5,h6 {
+  color: var(--class);
+  font-size: 1em;
+  margin: 0;
+}
+
+em {
+  color: var(--weak);
+  font-style: normal;
+}
+
+strong {
+  color: var(--strong);
+  font-style: normal;
+}
+
+a {
+  text-decoration: none;
+  color: var(--function);
 }
 
 ol {
@@ -86,59 +88,9 @@ ul > li {
 
 ul > li:before {
   content: "│";
-  padding-right: 1em;
+  padding-right: 0.65em;
   color: var(--group1);
 }
-
-.iframe-container {
-  position: relative;
-  width: 100%;
-  overflow: hidden;
-  padding-top: 75%;
-}
-
-#blog-content {
-  overflow-wrap: break-word;
-}
-
-iframe {
-  position: absolute;
-  top: 0;
-  left: 0;
-  bottom: 0;
-  right: 0;
-  width: 100%;
-  height: 100%;
-}
-
-p {
-  margin: 0;
-}
-
-h1,h2,h3,h4,h5,h6 {
-  color: var(--class);
-  font-size: 1em;
-  margin: 0;
-}
-
-em {
-  color: var(--weak);
-  font-style: normal;
-}
-
-strong {
-  color: var(--strong);
-  font-style: normal;
-}
-
-a {
-  text-decoration: none;
-  color: var(--function);
-}
-/* a:after {
-  content: "()";
-  color: var(--operator);
-} */
 
 label {
   color: var(--strong);
@@ -172,18 +124,70 @@ input[type=radio]:focus {
   outline: none;
 }
 
-.function {
-  color: var(--function);
-  cursor: pointer;
-}
 button {
   border: none;
-  /*text-decoration: none;*/
-  /*display: inline-block;*/
   color: var(--strong);
   background-color: var(--background);
   padding: 0px;
   font-family: "Roboto Mono";
   font-weight: 512;
   font-size: 16px;
+}
+
+iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  right: 0;
+  width: 100%;
+  height: 100%;
+}
+
+/* Class-Level */
+.string {
+  color: var(--string);
+}
+
+.operator {
+  color: var(--operator);
+}
+
+.function {
+  color: var(--function);
+  cursor: pointer;
+}
+
+.line {
+  border-left: 1px;
+  border-color: var(--line);
+  height: 100%;
+}
+
+.iframe-container {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  padding-top: 75%;
+}
+
+/* ID-Level */
+#numbers {
+  height: 100%; /* Full-height: remove this if you want "auto" height */
+  width: 3em; /* Set the width of the sidebar */
+  float: left;
+  z-index: 1; /* Stay on top */
+  top: 0; /* Stay at the top */
+  left: 0;
+  overflow-x: hidden; /* Disable horizontal scroll */
+  padding-top: 1em;
+}
+
+#content {
+  padding-top: 1em;
+  margin-left: 3em;
+}
+
+#blog-content {
+  overflow-wrap: break-word;
 }
