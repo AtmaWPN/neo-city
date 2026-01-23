@@ -51,9 +51,14 @@ strong {
   font-style: normal;
 }
 
-a {
+a:not(.unstyled) {
   text-decoration: none;
   color: var(--function);
+}
+
+a.unstyled {
+  text-decoration: none;
+  color: var(--medium);
 }
 
 ol {
