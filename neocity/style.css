@@ -114,10 +114,10 @@ input {
 }
 
 input[type=text] {
-  width: 90%
+  width: min(100%, 71em);
 }
 input:not([type]) {
-  width: 90%
+  width: min(100%,71em);
 }
 
 input:focus {

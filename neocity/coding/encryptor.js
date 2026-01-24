@@ -1,6 +1,7 @@
-const cipherMode = document.getElementById("cipher-mode");
+
 
 function encrypt() {
+  const cipherMode = document.getElementById("cipher-mode");
   const input = document.getElementById("blog-content-input");
   const key = document.getElementById("encryption-key-input");
   const output = document.getElementById("encrypted-blog-content");
@@ -12,5 +13,6 @@ function encrypt() {
 }
 
 function toggleMode() {
+  const cipherMode = document.getElementById("cipher-mode");
   cipherMode.innerText === "Decipher" ? cipherMode.innerText = "Encipher" : cipherMode.innerText = "Decipher";
 }
