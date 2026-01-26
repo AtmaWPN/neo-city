@@ -56,6 +56,11 @@ a:not(.unstyled) {
   color: var(--function);
 }
 
+a:not(:has(*))::after {
+  content: "()";
+  color: var(--operator);
+}
+
 a.unstyled {
   text-decoration: none;
   color: var(--medium);

@@ -1,6 +1,16 @@
 {
     "posts": [
 		{
+			"title": "Relaxation Weekend",
+            "date": "01/25/2026",
+			"year": 2026,
+			"month": 1,
+			"day": 25,
+            "subtitle": null,
+            "encrypted": false,
+            "content": "<p>I decided this week to focus on relaxing this weekend. I live a pretty chill life, but this week I noticed I was exhibiting some signs of stress so I figured I would attempt to nip it in the bud. I think the source of the stress was my mind being cluttered. I've been pulled in a lot of directions lately by various projects, project ideas, and time commitments to friends and family, so this makes sense. Focusing on relaxing has gone well. I spent my time cleaning my apartment, eating good food, and enjoying some quality media. Tomorrow morning I'm going climbing with my cousins before work so I'm even going to go to bed early tonight.</p><p>Several of the projects I want to work on will involve 3d printing, so I started doing some tests and calibration for my 3d printer. The main issue I have with it is ringing which in the 3d printing space refers to ripples in the surface of a print caused by the printer vibrating. I've done some things for this in the past, but now I'm approaching it more scientifically with a test print.</p><p>I don't talk about current events much, on this blog or otherwise. In the past I've heard people talk about how spending time on social media increases their anxiety and depression because of all the bad stuff going on in the world and at the time I didn't relate to that. Social media algorithms show people things that they engage with and I tend to not engage with the sort of misery porn that other people seem to. These days however things are bad in a way that hits a lot closer to home. The current administration is using ICE agents to stoke violence in this country and drive us closer to civil war. I don't know what to do about this, if anything. Its getting harder and harder to ignore.</p><p>I finally made the decision this weekend to share this blog with my friends and family. I started this blog just for me. I think putting it on the internet made it feel like enough of a commitment that I kept posting. I do worry a little bit that sharing it with specific people like this will influence how I write these posts. But I think at this point I've sort of found my voice so that worry is much less pressing than it was when I first started the blog.</p>"
+		},
+		{
 			"title": "This website has existed for 1 year and 3 days",
             "date": "01/18/2026",
 			"year": 2026,
