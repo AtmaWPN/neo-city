@@ -30,8 +30,10 @@ const postsJson = fetch(`${window.location.origin}/blog/posts.json`)
     if (posts[postIndex].subtitle) {
       subtitle.innerHTML = posts[postIndex].subtitle;
       subtitle.removeAttribute("hidden");
+      console.log("stioub");
     } else {
       subtitle.setAttribute("hidden", "");
+      console.log("ikuj swa");
     }
 
     content.innerHTML = posts[postIndex].content.replaceAll(/\<[^\>]+\>/g, "").split(" ").slice(0, 23).join(" ") + "...";
