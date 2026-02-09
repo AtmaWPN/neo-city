@@ -1,6 +1,13 @@
 {
     "posts": [
 		{
+			"title": "I Hate 3D Printing",
+			"date": "02/08/2026",
+			"subtitle": null,
+			"encrypted": false,
+			"content": "<p>Ok I don't actually hate 3D printing, but I've experienced a major setback. This Thursday I started a print for several pieces of a <a href=\"https://www.printables.com/model/27521-yosegi-puzzle-box/files\">puzzle box</a> before leaving for work. When I got home from work, I saw this: <br><img src=\"assets/printer_blob_detail_02_26.png\" height=\"258\" /><br>This was very disappointing to say the least. I don't have any footage of the moment that the print failed, but I imagine that one of the imcomplete pieces lost bed adhesion and stuck to the nozzle. As the print continued, new filament from the nozzle further cemented the part to it and the motion of the printhead knocked all the other parts off the bed or stuck them to the nozzle as well. At some point the mass of parts stuck to and jammed in the nozzle overcame the pressure of the extruded filament and the new filament was instead forced back up and around the hotend. It took me a while to clean this up, and ultimately only one part was broken, the silicone sock that goes around the hotend for insulation. The hotend still has PLA residue on it, and while I was looking for a site that would ship replacement parts to the US, I found a hotend upgrade kit for my printer. It claimed to prevent leaking and improve performance, so I went for it. It should get here in about a week, at which point I will go back to loving 3D printing. In the future I'm going to set up a webcam to watch the printer so I can watch it from anywhere and remotely stop a print.</p><p>I've been slipping back into old habits as far as sleep and media consumption as of late. I need to strengthen my dedication to these things. I am better than I was yesterday, and I will be better tomorrow than I am today.</p>"
+		},
+		{
 			"title": "I Love 3D Printing",
 			"date": "02/01/2026",
 			"year": 2026,
