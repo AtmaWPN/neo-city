@@ -30,6 +30,7 @@ body {
 }
 
 p {
+  position: relative;
   margin: 0;
   text-indent: -1.25em;
   padding-left: 1.25em;
@@ -89,18 +90,19 @@ ol > li:before {
 ul {
   list-style: none;
   margin: 0;
-  padding-left: 0;
+  padding-left: 1.25em;
+  position: relative;
 }
 
 ul > li {
   padding-left: 0;
 }
 
-ul > li:before {
+/* ul > li:before {
   content: "│";
   padding-right: 0.65em;
   color: var(--group1);
-}
+} */
 
 label {
   color: var(--strong);
