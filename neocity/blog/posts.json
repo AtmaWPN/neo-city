@@ -1,6 +1,16 @@
 {
     "posts": [
 		{
+			"title": "Voron at T-0 days",
+			"date": "03/02/2026",
+			"year": 2026,
+			"month": 3,
+			"day": 2,
+			"subtitle": null,
+			"encrypted": false,
+			"content": "<p>The parts for my Voron Trident are set to arrive today. I'm underprepared because I haven't printed any serious ABS parts yet. To that end, this weekend I rooted my 3D printer and began tuning it to print ABS. One of the test prints I did is a series of 30mmx30mmx3mm bricks each printed with a different extrusion multiplier. I printed them in my enclosure, but they all warped. The print still succeeded, but I'm going to need to improve the enclosure's ability to retain heat. I think the main improvements will be sealing the door better and sealing the edges that touch the workbench better. Currently the chamber can maintain 35 C (95 F) while the bed and nozzle are heated for ABS. I will probably need the temp to be over 40 C before I can reliably print ABS. I also finished the YeetHammer this week, which was a lot of fun.</p><p>I'm feeling the urge to improve myself more strongly as of late. I want to take that stuff more seriously, especially with regards to my ability to focus. Obviously the way to improve my focus is to train and practice, but focus is much harder to train than a muscle group. \"The mind commands the body and is instantly obeyed. The mind commands itself and meets resistance.\" - St. Augustine of Hippo. In the past I've made changes to my routines or habits all at once and found great success, but this change is not going to work like that. I think it will be a gradual and continuous effort, which is something that I'm not good at. I should read Digital Minimalism.</p>"
+		},
+		{
 			"title": "The Yeethammer",
 			"date": "02/22/2026",
 			"year": 2026,
