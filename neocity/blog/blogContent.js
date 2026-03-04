@@ -4,14 +4,14 @@ const next = document.getElementById("next");
 const title = document.getElementById("blog-title");
 const subtitle = document.getElementById("blog-subtitle");
 const decryptor = document.getElementById("decryptor");
-const key = document.getElementById("decryption-key");
-const content = document.getElementById("blog-content");
 
 let blogRendered = false;
 
 const postsJson = fetch(`${window.location.origin}/blog/posts.json`)
   .then((response) => response.json())
   .then((json) => {
+    const content = document.getElementById("blog-content");
+
     const queryParams = new URLSearchParams(window.location.search);
     const showEncryptedParam = queryParams.get("e");
     const postParam = queryParams.get("post")?.split("-");
@@ -75,11 +75,21 @@ const postsJson = fetch(`${window.location.origin}/blog/posts.json`)
 
 function decrypt() {
   postsJson.then((json) => {
+    const content = document.getElementById("blog-content");
+    const key = document.getElementById("decryption-key");
+    
     const queryParams = new URLSearchParams(window.location.search);
     const postParam = queryParams.get("post")?.split("-");
     const [year, month, day] = postParam?.length === 3 ? postParam.map((it) => parseInt(it)) : [null, null, null];
     const postIndex = postParam?.length === 3 ? json.posts.findIndex((it) => it.year === year && it.month === month && it.day === day) : posts.length - 1;
 
     content.innerHTML = decipher(json.posts[postIndex].content, key.value);
+
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        blogRendered = true;
+        processStyle();
+      })
+    })
   })
 }
