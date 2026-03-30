@@ -1,6 +1,15 @@
 {
     "posts": [
 		{
+			"title": "Caerostris",
+			"year": 2026,
+			"month": 3,
+			"day": 30,
+			"subtitle": null,
+			"encrypted": false,
+			"content": "<p>I did a lot of work on my new printer, which I've decided to name Caerostris after the Genus of orb weaver spider that makes the biggest webs. So far I've finished the Frame and Gantry, except I realized this weekend after I installed the A and B belts that the kit I bought came with the TAP probe rather than the stock probe and the printed parts for attaching the toolhead to the belts and rails would need to be reprinted. The TAP probe involves mounting the entire toolhead on a small vertical rail and tapping the whole head against the build plate until it hits an optical limit switch. Supposedly it's a lot more accurate than the other probe options so I'm glad to have it and the different parts for it were short prints. The next steps for me are mounting the bed and building the toolhead.</p><p>I'm being really good about my routines now, I started using a cleanser on my face every morning and I do a short workout in the evening. I want to keep up both of these for at least a month before I think about making adjustments. I had this idea towards the end of 2025 that in 2026 I would sometimes devote a month towards one particular thing and really focus on that one thing or better myself in that one area. I don't really think like that now. The path to improvement for me is not trying to hyperfocus one thing but to incrementally add and change things in many areas over time. The key concept here is the 80-20 rule, the idea that 80% of the outcome can be accomplished with 20% of the effort. There are small, easy wins to be had basically everywhere, from diet and exersize to fashion to learning new skills. I feel like these days it's easy to get wrapped up in the idea that you have to do something perfect and optimally. Online communities around things like exersize, for instance, are constantly discussing stuff like optimal deload frequency when for most people just going on a walk everyday would increase their life expectancy by a scientifically significant degree. I guess the moral here is \"just do stuff\", or \"don't miss the forest for the trees\", or \"don't let the perfect be the enemy of the good\". Unfortunately no matter how nice those sayings sound, there is no substitute for real understanding.</p>"
+		},
+		{
 			"title": "Resident Evil 2 Remake",
 			"date": "03/16/2026",
 			"year": 2026,
