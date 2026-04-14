@@ -47,7 +47,7 @@ const postsJson = fetch(`${window.location.origin}/blog/posts.json`)
     const nextPost = posts[postIndex + 1] ?? posts[posts.length - 1];
     next.href = `${window.location.origin}/blog.html?post=${nextPost.year}-${nextPost.month}-${nextPost.day}${showEncryptedParam === "true" ? "&e=true" : ""}`;
     
-    title.innerHTML = `${posts[postIndex].date} - ${posts[postIndex].title}`;
+    title.innerHTML = `${posts[postIndex].month}/${posts[postIndex].day}/${posts[postIndex].year} - ${posts[postIndex].title}`;
     
     if (posts[postIndex].subtitle) {
       subtitle.innerHTML = posts[postIndex].subtitle;

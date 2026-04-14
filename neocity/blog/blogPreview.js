@@ -25,7 +25,7 @@ const postsJson = fetch(`${window.location.origin}/blog/posts.json`)
     }
     
     title.innerHTML = posts[postIndex].title;
-    date.innerHTML = posts[postIndex].date;
+    date.innerHTML = `${posts[postIndex].month}/${posts[postIndex].day}/${posts[postIndex].year}`;
 
     if (posts[postIndex].subtitle) {
       subtitle.innerHTML = posts[postIndex].subtitle;
