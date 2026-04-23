@@ -1,6 +1,15 @@
 {
     "posts": [
         {
+            "title": "8Vim",
+			"year": 2026,
+			"month": 4,
+			"day": 23,
+			"subtitle": null,
+			"encrypted": false,
+			"content": "<p>Last night I made an implementation of 8Vim for controllers. <a href=\"https://github.com/8VIM/8VIM\">8Vim</a> is an alternative android keyboard that I think is really cool. It's based on an old project called 8Pen which is now deprecated. A friend of mine made me aware of it several weeks ago and I was immediately hooked. It feels so much more natural than typing on a mini keyboard with my thumbs. The only issue with it is that it isn't as fast as typing with your thumbs. This is what led me to the idea of using it as an input system for controllers. Typically when you need to type something for a console game it displays a big qwerty keyboard on the screen and you have to slowly move a cursor around it with the joystick to select each key. 8Vim would be faster than the default for this case. And that is why I spent last night making a proof of concept. It's been a long time since I've coded a small, just-for-fun project like this. It feels good. Anyway, it worked great! I think I will put a more polished version of it on this website.</p><p>I feel a little out of practice at writing for this blog. I've recently been feeling like I don't really have much to say here, but ultimately this blog is meant to be a record of who I am, so if I have nothing to say I should talk about that. I've been thinking a bit about how I want to change my workflow for this blog. I know that the only routines that will actually stick are daily routines, so maybe I need to write a little bit every day and then make a post using that information every week. There are also a lot of possibilities for using Composable 2DOs to help with this as well. The most important thing is to keep moving. Mind Begets Mind.</p><p>Completely unrelated to anything else in this post: I recently found out that putting lotion on my face while it's still wet is way more effective and makes my face feel less greasy all day, major win! I've also been slowly but surely adding better clothes to my wardrobe.</p>"
+        },
+        {
             "title": "2 Steps Forward, 1 Step Back",
 			"year": 2026,
 			"month": 4,
