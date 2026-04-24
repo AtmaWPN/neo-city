@@ -75,12 +75,42 @@ function drawBackground() {
         const ccwText = ctx.measureText(keyboardLayout.top.ccw[index]);
         ctx.fillText(keyboardLayout.right.ccw[index], WIDTH / 2 + index * LETTER_SPACING + 100 - ccwText.width / 2, HEIGHT / 2 - index * LETTER_SPACING - 60 + ccwText.emHeightAscent / 2);
     })
+    // draw current sector
+    ctx.fillStyle = "#00000055";
+    ctx.beginPath();
+    switch (sector) {
+        case Sector.CENTER:
+            ctx.ellipse(WIDTH / 2, HEIGHT / 2, WIDTH / 6, HEIGHT / 6, 0, 0, 2 * Math.PI);
+            break;
+        case Sector.TOP:
+            ctx.moveTo(0, 0);
+            ctx.lineTo(WIDTH / 2, HEIGHT / 2);
+            ctx.lineTo(WIDTH, 0);
+            break;
+        case Sector.LEFT:
+            ctx.moveTo(0, 0);
+            ctx.lineTo(WIDTH / 2, HEIGHT / 2);
+            ctx.lineTo(0, HEIGHT);
+            break;
+        case Sector.BOTTOM:
+            ctx.moveTo(0, HEIGHT);
+            ctx.lineTo(WIDTH / 2, HEIGHT / 2);
+            ctx.lineTo(WIDTH, HEIGHT);
+            break;
+        case Sector.RIGHT:
+            ctx.moveTo(WIDTH, 0);
+            ctx.lineTo(WIDTH / 2, HEIGHT / 2);
+            ctx.lineTo(WIDTH, HEIGHT);
+            break;
+    }
+    ctx.closePath();
+    ctx.fill();
 }
 
 var gp = null;
 window.addEventListener("gamepadconnected", (e) => {
     gp = navigator.getGamepads()[e.gamepad.index];
-    console.log(`Gamepad connected at index ${e.gamepad.index}: ${e.gamepad.id}. ${e.gamepad.buttons} buttons, ${e.gamepad.axes} axes.`);
+    console.log(`Gamepad connected at index ${e.gamepad.index}: ${e.gamepad.id}. ${e.gamepad.buttons.length} buttons, ${e.gamepad.axes.length} axes.`);
 });
 
 const Sector = {
@@ -108,8 +138,17 @@ function gameLoop(timestamp) {
     const x = gp.axes[4];
     const y = gp.axes[5];
 
+    const magnitude = Math.sqrt(gp.axes[4] ** 2 + gp.axes[5] ** 2);
+    var new_sector = Sector.CENTER;
+    if (magnitude > 0.1) {
+        if (x > 0 && Math.abs(x) > Math.abs(y)) new_sector = Sector.RIGHT;
+        if (y > 0 && Math.abs(y) > Math.abs(x)) new_sector = Sector.BOTTOM;
+        if (x < 0 && Math.abs(x) > Math.abs(y)) new_sector = Sector.LEFT;
+        if (y < 0 && Math.abs(y) > Math.abs(x)) new_sector = Sector.TOP;
+    }
+
     if (typing == true && !gp.buttons[5].pressed) {
-        if (sector = Sector.CENTER) {
+        if (new_sector == Sector.CENTER) {
             input.value += " ";
         }
         typing = false;
@@ -130,14 +169,6 @@ function gameLoop(timestamp) {
     }
     pressed = gp.buttons[5].pressed;
 
-    const magnitude = Math.sqrt(gp.axes[4] ** 2 + gp.axes[5] ** 2);
-    var new_sector = Sector.CENTER;
-    if (magnitude > 0.1) {
-        if (x > 0 && Math.abs(x) > Math.abs(y)) new_sector = Sector.RIGHT;
-        if (y > 0 && Math.abs(y) > Math.abs(x)) new_sector = Sector.BOTTOM;
-        if (x < 0 && Math.abs(x) > Math.abs(y)) new_sector = Sector.LEFT;
-        if (y < 0 && Math.abs(y) > Math.abs(x)) new_sector = Sector.TOP;
-    }
     if (typing == true && new_sector != sector) {
         if (sector == Sector.CENTER) {
             starting_sector = new_sector;
