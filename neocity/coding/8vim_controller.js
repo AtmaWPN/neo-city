@@ -97,7 +97,7 @@ function drawBackground() {
         const ccwTextSize = ctx.measureText(ccwLetter);
         ctx.fillText(ccwLetter, WIDTH / 2 + index * LETTER_SPACING + 100 - ccwTextSize.width / 2, HEIGHT / 2 - index * LETTER_SPACING - 60 + ccwTextSize.emHeightAscent / 2);
     })
-    if (State.sector != State.prevSector) {
+    if (State.sector !== State.prevSector) {
         easeOutSector = State.prevSector;
         easeCounter = 0;
     }
@@ -239,9 +239,9 @@ function mouseMoveHandler(e) {
 
 function gameLoop(timestamp) {
     drawBackground();
-    if (State.gp == null) {
+    if (State.gp === null) {
         console.log(`Left Mouse Button: ${State.mouse.m1}`, `Mouse X Pos: ${State.mouse.x}`, `Mouse Y Pos: ${State.mouse.y}`);
-        if (!State.mouse.m1 || (State.sector == Sector.CENTER && State.sector !== State.prevSector)) {
+        if (!State.mouse.m1 || (State.sector === Sector.CENTER && State.sector !== State.prevSector)) {
             State.mouse.path = [];
         }
 
@@ -252,9 +252,9 @@ function gameLoop(timestamp) {
         State.prevSector = State.sector;
         State.sector = Sector.CENTER;
         if (magnitude > 0.34) {
-            if (x > 0 && Math.abs(x) > Math.abs(y)) State.sector = Sector.RIGHT;
+            if (x > 0 && Math.abs(x) >= Math.abs(y)) State.sector = Sector.RIGHT;
             if (y > 0 && Math.abs(y) > Math.abs(x)) State.sector = Sector.BOTTOM;
-            if (x < 0 && Math.abs(x) > Math.abs(y)) State.sector = Sector.LEFT;
+            if (x < 0 && Math.abs(x) >= Math.abs(y)) State.sector = Sector.LEFT;
             if (y < 0 && Math.abs(y) > Math.abs(x)) State.sector = Sector.TOP;
         }
 
@@ -268,10 +268,10 @@ function gameLoop(timestamp) {
         const magnitude = Math.sqrt(x ** 2 + y ** 2);
         State.prevSector = State.sector;
         State.sector = Sector.CENTER;
-        if (magnitude > 0.1) {
-            if (x > 0 && Math.abs(x) > Math.abs(y)) State.sector = Sector.RIGHT;
+        if (magnitude > 0.34) {
+            if (x > 0 && Math.abs(x) >= Math.abs(y)) State.sector = Sector.RIGHT;
             if (y > 0 && Math.abs(y) > Math.abs(x)) State.sector = Sector.BOTTOM;
-            if (x < 0 && Math.abs(x) > Math.abs(y)) State.sector = Sector.LEFT;
+            if (x < 0 && Math.abs(x) >= Math.abs(y)) State.sector = Sector.LEFT;
             if (y < 0 && Math.abs(y) > Math.abs(x)) State.sector = Sector.TOP;
         }
 
@@ -280,38 +280,38 @@ function gameLoop(timestamp) {
     }
 
     if (State.typing && !State.pressed) {
-        if (State.sector == Sector.CENTER) {
+        if (State.sector === Sector.CENTER) {
             input.value += " ";
         }
         State.typing = false;
     }
     if (!State.prevPressed && State.pressed) {
-        if (State.sector == Sector.CENTER) {
+        if (State.sector === Sector.CENTER) {
             State.typing = true;
         }
-        if (State.sector == Sector.RIGHT) {
+        if (State.sector === Sector.RIGHT) {
             input.value = input.value.substr(0, input.value.length - 1);
         }
-        if (State.sector == Sector.BOTTOM) {
+        if (State.sector === Sector.BOTTOM) {
             input.value += "\n";
         }
-        if (State.sector == Sector.TOP) {
+        if (State.sector === Sector.TOP) {
             State.shift = (State.shift + 1) % 3;
         }
     }
 
-    if (State.typing == true && State.sector != State.prevSector) {
-        if (State.prevSector == Sector.CENTER) {
+    if (State.typing === true && State.sector !== State.prevSector) {
+        if (State.prevSector === Sector.CENTER) {
             State.requestedLetter.sector = State.sector;
-        } else if ((State.prevSector == Sector.TOP && State.sector == Sector.LEFT) || (State.prevSector == Sector.LEFT && State.sector == Sector.BOTTOM) || (State.prevSector == Sector.BOTTOM && State.sector == Sector.RIGHT) || (State.prevSector == Sector.RIGHT && State.sector == Sector.TOP)) {
+        } else if ((State.prevSector === Sector.TOP && State.sector === Sector.LEFT) || (State.prevSector === Sector.LEFT && State.sector === Sector.BOTTOM) || (State.prevSector === Sector.BOTTOM && State.sector === Sector.RIGHT) || (State.prevSector === Sector.RIGHT && State.sector === Sector.TOP)) {
             State.requestedLetter.index -= 1;
-        } else if ((State.prevSector == Sector.TOP && State.sector == Sector.RIGHT) || (State.prevSector == Sector.LEFT && State.sector == Sector.TOP) || (State.prevSector == Sector.BOTTOM && State.sector == Sector.LEFT) || (State.prevSector == Sector.RIGHT && State.sector == Sector.BOTTOM)) {
+        } else if ((State.prevSector === Sector.TOP && State.sector === Sector.RIGHT) || (State.prevSector === Sector.LEFT && State.sector === Sector.TOP) || (State.prevSector === Sector.BOTTOM && State.sector === Sector.LEFT) || (State.prevSector === Sector.RIGHT && State.sector === Sector.BOTTOM)) {
             State.requestedLetter.index += 1;
-        } else if (State.sector == Sector.CENTER) {
-            if (State.requestedLetter.index != 0 && Math.abs(State.requestedLetter.index) <= 4) {
+        } else if (State.sector === Sector.CENTER) {
+            if (State.requestedLetter.index !== 0 && Math.abs(State.requestedLetter.index) <= 4) {
                 const letter = keyboardLayout[State.requestedLetter.sector][State.requestedLetter.index > 0 ? "cw" : "ccw"][Math.abs(State.requestedLetter.index) - 1]
                 input.value += State.shift > 0 ? letter.toUpperCase() : letter;
-                if (State.shift == 1) State.shift = 0;
+                if (State.shift === 1) State.shift = 0;
             }
             State.requestedLetter.sector = Sector.CENTER;
             State.requestedLetter.index = 0;
