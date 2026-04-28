@@ -223,7 +223,7 @@ window.addEventListener("gamepadconnected", (e) => {
 });
 
 document.addEventListener("mouseup", (event) => { State.mouse.m1 = false })
-document.addEventListener("mousedown", (event) => { State.mouse.m1 = true })
+document.addEventListener("mousedown", (event) => { if (Math.abs(State.mouse.x) <= 1 && Math.abs(State.mouse.y) <= 1) State.mouse.m1 = true })
 document.addEventListener("mousemove", mouseMoveHandler);
 function mouseMoveHandler(e) {
   const relativeX = e.clientX - canvas.offsetLeft;

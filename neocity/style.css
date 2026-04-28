@@ -109,6 +109,17 @@ label {
   margin-right: 1em;
 }
 
+textarea {
+  padding: 0;
+  background-color: var(--background);
+  border-color: var(--line);
+  color: var(--string);
+  border-width: 1px;
+  font-family: "Roboto Mono";
+  font-weight: 512;
+  font-size: 16px;
+}
+
 input {
   padding: 0;
   background-color: var(--background);
