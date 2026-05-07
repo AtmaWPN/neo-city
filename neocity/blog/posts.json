@@ -1,6 +1,15 @@
 {
     "posts": [
         {
+            "title": "[next weekly update]",
+			"year": 2026,
+			"month": 5,
+			"day": 7,
+			"subtitle": null,
+			"encrypted": false,
+			"content": "<p>I added a Gamepad 8Vim Demo to the coding projects page. I was able to copy most of the logic from my python script so it didn't take very long, I even added mouse controls. What did take a long time was the period of procrastination between finishing the project and actually adding it to the site. I've been in a procrastinating mood lately, or rather I've not been in a doing things mood. That said I have made progress on Caerostris, I assembled the toolhead.</p><p>I beat Terraria with my little brother recently. It was a little anti-climactic because we'd spent a lot of time getting stronger and I'd been using the wiki for build guides. Overall it was a lot of fun. The next game we play is still up in the air, but it's becoming increasingly more likely that it will be Factorio. I'm having my brother play the demo to see if he likes it enough to be worth committing a ton of time to. I worry that Factorio will be annoying to play 1 hour at a time but we'll see. Thinking about Factorio has gotten me to start a new save (which is pretty much always how it goes). This time I decided to try and play as an eco-friendly engineer. This means I try to avoid polluting or killing anything as much as possible. It's been a chill experience so far though I expect that to change when I go to Vulcanus and Gleba.</p><p>I went to the library the other day with a list of the five or so books on my to-read list and I only found one of them. However, on my way out I saw some Neal Stephenson books and the name rung a bell so I looked closer and realized he had written Snow Crash. So now I'm reading Snow Crash. It's a really cool book. The world building is certainly wacky but at the same time compelling. This is the book that invented the term \"Metaverse\", which is how I first heard about it. Despite this the Metaverse has much less prominence in the world building than I expected.</p>"
+        },
+        {
             "title": "Kicking Myself Back into Gear",
 			"year": 2026,
 			"month": 4,
