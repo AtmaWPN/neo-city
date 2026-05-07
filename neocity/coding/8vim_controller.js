@@ -1,5 +1,5 @@
-const canvas = document.getElementById("keyboard");
-const input = document.getElementById("input")
+const canvas = document.getElementById("8vim-keyboard");
+const input = document.getElementById("8vim-input")
 const ctx = canvas.getContext("2d");
 
 const WIDTH = canvas.width;

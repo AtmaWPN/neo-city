@@ -16,6 +16,16 @@
     <div id="content">
       <h2>Coding projects small enough to run in the browser</h2>
       <br>
+      
+      <h3>8Vim Demo for Gamepad and Mouse</h3>
+      <p>I made this because I got a little obsessed with 8Vim.</p>
+      <p>If you have a gamepad connected, make any input to start using it, not all gamepads are supported.</p>
+      <p>The right joystick moves between sectors and the right trigger presses and un-presses.</p>
+      <p>If you don't have a compatible gamepad you can use your mouse.</p>
+
+      <textarea id="8vim-input" rows="5" cols="80" autofocus></textarea><br>
+      <canvas id="8vim-keyboard" width="512" height="512"></canvas>
+
       <h3>Cipher</h3>
 
       <p>This is a neat little cipher that I made for encrypting HTML content.</p>
@@ -39,6 +49,7 @@
     <script src="coding/encryptor.js"></script>
     <script src="helpers/style_processor.js"></script>
     <script src="helpers/line_numbers.js"></script>
+    <script src="coding/8vim_controller.js"></script>
     <a href="index.html" style="display:flex; cursor:pointer; align-items:center; position:fixed; inset-inline-start: 1em; inset-block-end: 1em;"><img src="favicon.ico"><em style="margin-left:1em;">RETURN</em></a>
     <div style="display:flex; flex-direction: column; align-items:flex-end; position:fixed; inset-inline-end: 1em; inset-block-end: 1em;">
       <a target="_blank" rel="noopener noreferrer" href="https://github.com/AtmaWPN" style="display:flex; align-items:center;"><img src="assets/GitHub_Invertocat_White.svg" height="64px"></a>
