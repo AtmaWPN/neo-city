@@ -1,6 +1,15 @@
 {
     "posts": [
         {
+            "title": "Working from Home SUCKS",
+			"year": 2026,
+			"month": 6,
+			"day": 9,
+			"subtitle": "or maybe I just like complaining :)",
+			"encrypted": false,
+			"content": "<p>Last week I got sick for a little bit and then halfway through recovering the company I work at moved offices and everyone had to work from home for a couple weeks. I spent the first day chugging warm honey water which if it didn't help at least tasted good. That plus working from home was a significant disruption to my routines, but at this point those have recovered also. My air conditioner stopped working on like the third day of working from home so I've been acclimating to (suffering from) the heat since then. I got a box fan a couple days ago which helped a lot. I would have gotten it sooner but my car's battery was dead because I hadn't driven it in too long.</p><p>I've been playing Factorio a lot recently, today I got to Gleba for the first time. I think it's really interesting. Gleba is commonly hated in the factorio community, but I think that's not because it's uniquely difficult but because it forces the player to think completely differently. On Gleba most of the resources you get spoil over time, and so if the player makes resource buffers or produces a surplus they will end up clogging their factory with spoilage. The solution the game gives the player is the heating tower, which allows them to turn all excess organic items into energy. This is what I love most about the Factorio expansion: every planet introduces new mechanics that completely change the character of the factories built on it.</p><p>I've been a lot more motivated to work on projects lately, but I'm going on vacation for the rest of this week, so hopefully I still feel that way afterwards. I've got a six-hour motorcycle ride ahead of me tomorrow that I'm not really looking forward to. I seriously considered bailing on the trip, but it's a family reunion with my Dad's side of the family who I haven't seen much recently, so I feel like I have to make an appearance.</p>"
+        },
+        {
             "title": "Further Cycle Documentation",
 			"year": 2026,
 			"month": 5,
