@@ -240,7 +240,7 @@ function mouseMoveHandler(e) {
 function gameLoop(timestamp) {
     drawBackground();
     if (State.gp === null) {
-        console.log(`Left Mouse Button: ${State.mouse.m1}`, `Mouse X Pos: ${State.mouse.x}`, `Mouse Y Pos: ${State.mouse.y}`);
+        // console.log(`Left Mouse Button: ${State.mouse.m1}`, `Mouse X Pos: ${State.mouse.x}`, `Mouse Y Pos: ${State.mouse.y}`);
         if (!State.mouse.m1 || (State.sector === Sector.CENTER && State.sector !== State.prevSector)) {
             State.mouse.path = [];
         }
@@ -261,7 +261,7 @@ function gameLoop(timestamp) {
         State.prevPressed = State.pressed;
         State.pressed = State.mouse.m1;
     } else {
-        console.log(`Right Trigger: ${State.gp.buttons[5].pressed}`, `Right Stick X Axis: ${State.gp.axes[4]}`, `Right Stick Y Axis: ${State.gp.axes[5]}`);
+        // console.log(`Right Trigger: ${State.gp.buttons[5].pressed}`, `Right Stick X Axis: ${State.gp.axes[4]}`, `Right Stick Y Axis: ${State.gp.axes[5]}`);
         const x = State.gp.axes[4];
         const y = State.gp.axes[5];
 
