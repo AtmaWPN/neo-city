@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATMAWEAPON</title>
+    <!-- The style.css file allows you to change the look of your web pages.
+         If you include the next line in all your web pages, they will all share the same look.
+         This makes it easier to make new pages for your site. -->
+    <link href="../style.css" rel="stylesheet" type="text/css" media="all">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+  </head>
+  <body class="page">
+    <div id="n_mosaic_controls">
+      <label for="n_mosaic_width">Width:</label>
+      <input type="number" id="n_mosaic_width" value="9" min="2" max="32">
+      <label for="n_mosaic_height">Height:</label>
+      <input type="number" id="n_mosaic_height" value="9" min="2" max="32">
+      <label for="n_mosaic_colors">Colors:</label>
+      <input type="number" id="n_mosaic_colors" value="2" min="2" max="8">
+      <button id="n_mosaic_regenerate" class="function">Regenerate()</button>
+      <button id="n_mosaic_reveal_solution" class="function">ShowSolution()</button>
+    </div>
+    <canvas id="n_mosaic_board" width="512" height="512"></canvas>
+    <script src="n_mosaic.js"></script>
+  </body>
+</html>

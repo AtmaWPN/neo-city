@@ -1,0 +1,3 @@
+curl -fsSL https://esbuild.github.io/dl/latest | sh
+chmod +x esbuild
+./esbuild ../../neocity/coding/n_mosaic.ts --outfile=../../neocity/coding/n_mosaic.js --format=iife
