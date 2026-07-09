@@ -1,75 +1,192 @@
 (() => {
+  class NMosaicCell {
+    row;
+    col;
+    color;
+    solutionColor;
+    neighbors;
+    included;
+    constructor(row, col) {
+      this.row = row;
+      this.col = col;
+      this.color = null;
+      this.solutionColor = null;
+      this.neighbors = [];
+      this.included = false;
+    }
+  }
+  class NMosaicClue {
+    row;
+    col;
+    color;
+    count;
+    constructor(row, col, color, count) {
+      this.row = row;
+      this.col = col;
+      this.color = color;
+      this.count = count;
+    }
+  }
   class NMosaic {
     PALETTE = [
-      "#000000",
-      "#ffffff",
-      "#e74c3c",
-      "#2ecc71",
       "#3498db",
       "#f1c40f",
-      "#9b59b6"
+      "#2ecc71",
+      "#9b59b6",
+      "#e74c3c",
+      "#e67e22",
+      "#1abc9c",
+      "#34495e"
     ];
     ctx;
-    board;
-    solution;
+    paletteCtx;
+    cells;
     clues;
     HEIGHT;
     WIDTH;
+    PALETTE_HEIGHT;
+    PALETTE_WIDTH;
     BOARD_HEIGHT;
     BOARD_WIDTH;
     BOARD_COLORS;
+    BOARD_FRACTION;
+    BOARD_DIFFICULTY;
     showSolution = false;
     puzzleComplete = false;
-    incorrectClues = 0;
-    constructor(height = 9, width = 9, colors = 2, canvas) {
+    selectedColor = 0;
+    constructor(height = 9, width = 9, colors = 2, fraction = 1, difficulty = "random", canvas, paletteCanvas) {
       this.ctx = canvas.getContext("2d");
+      this.paletteCtx = paletteCanvas.getContext("2d");
       this.WIDTH = canvas.width;
       this.HEIGHT = canvas.height;
+      this.PALETTE_WIDTH = paletteCanvas.width;
+      this.PALETTE_HEIGHT = paletteCanvas.height;
       this.BOARD_HEIGHT = height;
       this.BOARD_WIDTH = width;
       this.BOARD_COLORS = colors;
-      this.board = [];
-      this.solution = [];
+      this.BOARD_FRACTION = fraction;
+      this.BOARD_DIFFICULTY = difficulty;
+      this.cells = [];
       this.clues = [];
-      this.regenerate(this.BOARD_HEIGHT, this.BOARD_WIDTH, this.BOARD_COLORS);
+      this.regenerate(this.BOARD_HEIGHT, this.BOARD_WIDTH, this.BOARD_COLORS, this.BOARD_FRACTION, this.BOARD_DIFFICULTY);
     }
-    regenerate(height = 9, width = 9, colors = 2) {
+    regenerate(height = 9, width = 9, colors = 2, fraction = 0.5, difficulty = "random") {
       this.BOARD_HEIGHT = height;
       this.BOARD_WIDTH = width;
       this.BOARD_COLORS = colors;
-      this.board = Array(this.BOARD_HEIGHT).fill(null).map(() => Array(this.BOARD_WIDTH).fill(null).map(() => null));
-      this.solution = Array(this.BOARD_HEIGHT).fill(null).map(() => Array(this.BOARD_WIDTH).fill(null).map(() => Math.floor(Math.random() * this.BOARD_COLORS)));
+      this.BOARD_FRACTION = fraction;
+      this.BOARD_DIFFICULTY = difficulty;
+      this.selectedColor = 0;
+      this.cells = [];
       this.clues = [];
       this.puzzleComplete = false;
       this.showSolution = false;
       for (let row = 0; row < this.BOARD_HEIGHT; row++) {
         for (let col = 0; col < this.BOARD_WIDTH; col++) {
-          const clue = new NMosaicClue(
-            row,
-            col,
-            1,
-            this.getNeighbors(row, col).filter((it) => this.solution[it[0]][it[1]] === 1).length
-          );
-          this.clues.push(clue);
+          const cell = new NMosaicCell(row, col);
+          this.cells.push(cell);
         }
       }
-      console.log(this.clues);
+      this.generateBoardShape();
+      if (this.BOARD_DIFFICULTY === "easy") {
+        let possibleClues = this.cells.filter((cell) => cell.included && !this.clues.find((clue) => clue.col === cell.col && clue.row === cell.row) && cell.neighbors.find((neighbor) => neighbor.solutionColor === null));
+        while (possibleClues.length > 0) {
+          const clueWeights = possibleClues.map((cell) => {
+            const emptyNeighbours = cell.neighbors.filter((neighbor) => neighbor.solutionColor === null).length;
+            return 100 / Math.pow(this.BOARD_COLORS, emptyNeighbours);
+          });
+          const totalWeight = clueWeights.reduce((acc, cur) => acc + cur, 0);
+          let rng = Math.random() * totalWeight;
+          let newClueCell;
+          clueWeights.forEach((weight, index) => {
+            rng -= weight;
+            if (rng < 0) {
+              newClueCell = possibleClues[index];
+            }
+          });
+          if (newClueCell) {
+            const randomColor = Math.floor(Math.random() * this.BOARD_COLORS);
+            newClueCell.neighbors.filter((neighbor) => neighbor.solutionColor === null).forEach((cell) => cell.solutionColor = randomColor);
+            const clue = new NMosaicClue(
+              newClueCell.row,
+              newClueCell.col,
+              randomColor,
+              newClueCell.neighbors.filter((it) => it.solutionColor === randomColor).length
+            );
+            this.clues.push(clue);
+          }
+          possibleClues = this.cells.filter((cell) => cell.included && !this.clues.find((clue) => clue.col === cell.col && clue.row === cell.row) && cell.neighbors.find((neighbor) => neighbor.solutionColor === null));
+        }
+      } else if (this.BOARD_DIFFICULTY === "random") {
+        for (const cell of this.cells) {
+          if (!cell.included) continue;
+          cell.solutionColor = Math.floor(Math.random() * this.BOARD_COLORS);
+        }
+        for (const cell of this.cells) {
+          if (!cell.included) continue;
+          let bestClueColor = 0;
+          let bestClueCount = cell.neighbors.filter((it) => it.solutionColor === 0).length;
+          for (let i = 1; i < this.BOARD_COLORS; i++) {
+            let nextClueCount = cell.neighbors.filter((it) => it.solutionColor === i).length;
+            if (nextClueCount > bestClueCount) {
+              bestClueColor = i;
+              bestClueCount = nextClueCount;
+            }
+          }
+          const clue = new NMosaicClue(cell.row, cell.col, bestClueColor, bestClueCount);
+          this.clues.push(clue);
+        }
+        console.log(this.clues);
+      } else {
+        console.log("Unrecognized Difficulty Option");
+      }
     }
-    getNeighbors(row, col) {
-      if (row < 0 || row >= this.BOARD_HEIGHT || col < 0 || col >= this.BOARD_WIDTH) return [];
-      const output = [];
-      for (let subrow = -1; subrow <= 1; subrow++) {
-        for (let subcol = -1; subcol <= 1; subcol++) {
-          if (row + subrow < this.BOARD_HEIGHT && row + subrow >= 0 && col + subcol < this.BOARD_WIDTH && col + subcol >= 0) {
-            output.push([row + subrow, col + subcol]);
+    generateBoardShape() {
+      const totalCells = this.BOARD_HEIGHT * this.BOARD_WIDTH;
+      const targetCount = Math.max(1, Math.round(this.BOARD_FRACTION * totalCells));
+      const startRow = Math.floor(this.BOARD_HEIGHT / 2);
+      const startCol = Math.floor(this.BOARD_WIDTH / 2);
+      const startCell = this.getCell(startRow, startCol);
+      startCell.included = true;
+      const frontier = /* @__PURE__ */ new Set();
+      const addNeighborsToFrontier = (cell) => {
+        for (let dRow = -1; dRow <= 1; dRow++) {
+          for (let dCol = -1; dCol <= 1; dCol++) {
+            if (dRow === 0 && dCol === 0) continue;
+            if (Math.abs(dRow) === Math.abs(dCol)) continue;
+            const neighbor = this.getCell(cell.row + dRow, cell.col + dCol);
+            if (neighbor !== null && !neighbor.included && !frontier.has(neighbor)) {
+              frontier.add(neighbor);
+            }
+          }
+        }
+      };
+      addNeighborsToFrontier(startCell);
+      while (this.cells.filter((it) => it.included).length < targetCount && frontier.size > 0) {
+        const frontierArray = Array.from(frontier);
+        const nextCell = frontierArray[Math.floor(Math.random() * frontierArray.length)];
+        frontier.delete(nextCell);
+        nextCell.included = true;
+        addNeighborsToFrontier(nextCell);
+      }
+      for (const cell of this.cells) {
+        if (!cell.included) continue;
+        for (let dRow = -1; dRow <= 1; dRow++) {
+          for (let dCol = -1; dCol <= 1; dCol++) {
+            const neighbor = this.getCell(cell.row + dRow, cell.col + dCol);
+            if (neighbor !== null && neighbor.included) {
+              cell.neighbors.push(neighbor);
+            }
           }
         }
       }
-      console.log(output);
-      return output;
+    }
+    getCell(row, col) {
+      if (row < 0 || row >= this.BOARD_HEIGHT || col < 0 || col >= this.BOARD_WIDTH) return null;
+      return this.cells[row * this.BOARD_WIDTH + col];
     }
     drawBackground() {
-      this.ctx.fillStyle = "#aaeeee";
+      this.ctx.fillStyle = "#808080";
       this.ctx.fillRect(0, 0, this.WIDTH, this.HEIGHT);
       const squareWidth = this.WIDTH / this.BOARD_WIDTH;
       const squareHeight = this.HEIGHT / this.BOARD_HEIGHT;
@@ -88,72 +205,101 @@
         this.ctx.stroke();
       }
     }
+    drawPalette() {
+      this.paletteCtx.fillStyle = "#808080";
+      this.paletteCtx.fillRect(0, 0, this.PALETTE_WIDTH, this.PALETTE_HEIGHT);
+      const swatchSize = 44;
+      const gap = 10;
+      const spacing = swatchSize + gap;
+      const totalHeight = this.BOARD_COLORS * spacing - gap;
+      const startX = (this.PALETTE_WIDTH - swatchSize) / 2;
+      const startY = (this.PALETTE_HEIGHT - totalHeight) / 2;
+      for (let i = 0; i < this.BOARD_COLORS; i++) {
+        const x = startX;
+        const y = startY + i * spacing;
+        this.paletteCtx.fillStyle = this.PALETTE[i];
+        this.paletteCtx.fillRect(x, y, swatchSize, swatchSize);
+        if (i === this.selectedColor) {
+          this.paletteCtx.strokeStyle = "#ffffff";
+          this.paletteCtx.lineWidth = 3;
+          this.paletteCtx.strokeRect(x, y, swatchSize, swatchSize);
+        } else {
+        }
+      }
+    }
     drawBoard() {
       const squareWidth = this.WIDTH / this.BOARD_WIDTH;
       const squareHeight = this.HEIGHT / this.BOARD_HEIGHT;
       const fontSize = Math.max(10, Math.min(squareWidth, squareHeight) * 0.45);
-      for (let row = 0; row < this.BOARD_HEIGHT; row++) {
-        for (let col = 0; col < this.BOARD_WIDTH; col++) {
-          const value = this.showSolution ? this.solution[row][col] : this.board[row][col];
-          if (value !== null) {
-            this.ctx.fillStyle = this.PALETTE[value];
-            this.ctx.fillRect(
-              col * squareWidth + 1,
-              row * squareHeight + 1,
-              squareWidth - 2,
-              squareHeight - 2
-            );
-          }
+      for (const cell of this.cells) {
+        if (!cell.included) {
+          this.ctx.fillStyle = "#000000";
+          this.ctx.fillRect(
+            cell.col * squareWidth + 1,
+            cell.row * squareHeight + 1,
+            squareWidth - 2,
+            squareHeight - 2
+          );
+          continue;
+        }
+        const value = this.showSolution ? cell.solutionColor : cell.color;
+        if (value !== null) {
+          this.ctx.fillStyle = this.PALETTE[value];
+          this.ctx.fillRect(
+            cell.col * squareWidth + 1,
+            cell.row * squareHeight + 1,
+            squareWidth - 2,
+            squareHeight - 2
+          );
         }
       }
       this.ctx.font = `${fontSize}px "Roboto Mono", monospace`;
       this.ctx.textAlign = "center";
       this.ctx.textBaseline = "middle";
-      this.incorrectClues = 0;
       this.clues.forEach((clue) => {
+        if (clue.color === null) return;
+        const clueCell = this.getCell(clue.row, clue.col);
         let positiveGuessCount = 0;
         let negativeGuessCount = 0;
         let totalSpaces = 0;
-        for (let subrow = -1; subrow <= 1; subrow++) {
-          for (let subcol = -1; subcol <= 1; subcol++) {
-            if (this.board[clue.row + subrow] !== void 0 && this.board[clue.row + subrow][clue.col + subcol] !== void 0) {
-              totalSpaces += 1;
-              if (this.board[clue.row + subrow][clue.col + subcol] === 1) {
-                positiveGuessCount += 1;
-              }
-              if (this.board[clue.row + subrow][clue.col + subcol] !== null && this.board[clue.row + subrow][clue.col + subcol] !== 1) {
-                negativeGuessCount += 1;
-              }
-            }
+        for (const neighbor of clueCell.neighbors) {
+          totalSpaces += 1;
+          if (neighbor.color === clue.color) {
+            positiveGuessCount += 1;
+          }
+          if (neighbor.color !== null && neighbor.color !== clue.color) {
+            negativeGuessCount += 1;
           }
         }
-        this.ctx.fillStyle = "#808080";
         if (positiveGuessCount > clue.count || totalSpaces - negativeGuessCount < clue.count) {
-          this.ctx.fillStyle = "#ff0000";
-          this.incorrectClues += 1;
+          this.ctx.strokeStyle = "#ff0000";
+          this.ctx.lineWidth = 3;
+          const x1 = clue.col * squareWidth;
+          const y1 = clue.row * squareHeight;
+          const x2 = (clue.col + 1) * squareWidth;
+          const y2 = (clue.row + 1) * squareHeight;
+          this.ctx.beginPath();
+          this.ctx.moveTo(x1, y1);
+          this.ctx.lineTo(x2, y2);
+          this.ctx.moveTo(x2, y1);
+          this.ctx.lineTo(x1, y2);
+          this.ctx.stroke();
         }
+        this.ctx.fillStyle = this.PALETTE[clue.color];
         this.ctx.fillText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);
+        this.ctx.font = `${fontSize + 2}px "Roboto Mono", monospace`;
+        this.ctx.strokeStyle = "#000000";
+        this.ctx.lineWidth = 1;
+        this.ctx.strokeText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);
       });
       if (this.puzzleComplete) {
         this.ctx.font = `bold 96px "Roboto Mono", monospace`;
-        this.ctx.fillStyle = "#00ffff";
+        this.ctx.fillStyle = "#ffffff";
         this.ctx.fillText("YOU WIN", this.WIDTH / 2, this.HEIGHT / 2, this.WIDTH);
         this.ctx.strokeStyle = "#000000";
         this.ctx.lineWidth = 1;
         this.ctx.strokeText("YOU WIN", this.WIDTH / 2, this.HEIGHT / 2, this.WIDTH);
       }
-    }
-  }
-  class NMosaicClue {
-    row;
-    col;
-    color;
-    count;
-    constructor(row, col, color, count) {
-      this.row = row;
-      this.col = col;
-      this.color = color;
-      this.count = count;
     }
   }
   function nMosaicMain() {
@@ -163,8 +309,11 @@
     const widthInput = document.getElementById("n_mosaic_width");
     const colorsInput = document.getElementById("n_mosaic_colors");
     const canvas = document.getElementById("n_mosaic_board");
-    const nMosaic = new NMosaic(parseInt(heightInput.value), parseInt(widthInput.value), parseInt(colorsInput.value), canvas);
-    canvas.addEventListener("mousedown", (e) => {
+    const paletteCanvas = document.getElementById("n_mosaic_palette");
+    const shapeFractionInput = document.getElementById("n_mosaic_shape_fraction");
+    const difficultyInput = document.getElementById("n_mosaic_difficulty");
+    const nMosaic = new NMosaic(parseInt(heightInput.value), parseInt(widthInput.value), parseInt(colorsInput.value), parseFloat(shapeFractionInput.value), difficultyInput.value, canvas, paletteCanvas);
+    function handleBoardClick(e) {
       if (nMosaic.puzzleComplete) return;
       const rect = canvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -173,21 +322,60 @@
       const squareHeight = nMosaic.HEIGHT / nMosaic.BOARD_HEIGHT;
       const col = Math.floor(x / squareWidth);
       const row = Math.floor(y / squareHeight);
-      if (row >= 0 && row < nMosaic.BOARD_HEIGHT && col >= 0 && col < nMosaic.BOARD_WIDTH) {
-        const mouseState = e.button === 2 ? 0 : 1;
-        if (nMosaic.board[row][col] === mouseState) {
-          nMosaic.board[row][col] = null;
-        } else {
-          nMosaic.board[row][col] = mouseState;
+      const cell = nMosaic.getCell(row, col);
+      if (cell !== null && cell.included) {
+        if (e.button === 2) {
+          cell.color = null;
+        } else if (e.button === 0) {
+          cell.color = nMosaic.selectedColor;
         }
-        if (nMosaic.board.every((row2) => row2.every((cell) => cell !== null)) && nMosaic.incorrectClues === 0) {
+        const allCluesValid = nMosaic.clues.every((clue) => {
+          const clueCell = nMosaic.getCell(clue.row, clue.col);
+          if (!clueCell) return false;
+          const guessCount = clueCell.neighbors.filter((neighbor) => neighbor.color === clue.color).length;
+          return guessCount === clue.count;
+        });
+        if (nMosaic.cells.every((cell2) => !cell2.included || cell2.color !== null) && allCluesValid) {
           nMosaic.puzzleComplete = true;
         }
       }
-    });
+    }
+    function handlePaletteClick(e) {
+      const rect = paletteCanvas.getBoundingClientRect();
+      const x = e.clientX - rect.left;
+      const y = e.clientY - rect.top;
+      const swatchSize = 44;
+      const gap = 10;
+      const spacing = swatchSize + gap;
+      const totalHeight = nMosaic.BOARD_COLORS * spacing - gap;
+      const startX = (nMosaic.PALETTE_WIDTH - swatchSize) / 2;
+      const startY = (nMosaic.PALETTE_HEIGHT - totalHeight) / 2;
+      if (x < startX - 5 || x > startX + swatchSize + 5) return;
+      const relativeY = y - startY;
+      const index = Math.floor(relativeY / spacing);
+      const offsetInSwatch = relativeY - index * spacing;
+      if (index < 0 || index >= nMosaic.BOARD_COLORS || offsetInSwatch < -5 || offsetInSwatch > swatchSize + 5) return;
+      nMosaic.selectedColor = index;
+    }
+    function changeSelectedColor(direction) {
+      nMosaic.selectedColor = (nMosaic.selectedColor + direction + nMosaic.BOARD_COLORS) % nMosaic.BOARD_COLORS;
+    }
+    function handleWheel(e) {
+      e.preventDefault();
+      if (e.deltaY > 0) {
+        changeSelectedColor(1);
+      } else {
+        changeSelectedColor(-1);
+      }
+    }
+    canvas.addEventListener("mousedown", handleBoardClick);
+    paletteCanvas.addEventListener("mousedown", handlePaletteClick);
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    paletteCanvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    canvas.addEventListener("wheel", handleWheel, { passive: false });
+    paletteCanvas.addEventListener("wheel", handleWheel, { passive: false });
     function regenerate() {
-      nMosaic.regenerate(parseInt(heightInput.value), parseInt(widthInput.value), parseInt(colorsInput.value));
+      nMosaic.regenerate(parseInt(heightInput.value), parseInt(widthInput.value), parseInt(colorsInput.value), parseFloat(shapeFractionInput.value), difficultyInput.value);
     }
     regenerateButton.onclick = regenerate;
     revealSolutionButton.onclick = (() => {
@@ -201,6 +389,7 @@
     function gameLoop() {
       nMosaic.drawBackground();
       nMosaic.drawBoard();
+      nMosaic.drawPalette();
       requestAnimationFrame(gameLoop);
     }
     requestAnimationFrame(gameLoop);
