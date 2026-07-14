@@ -1,6 +1,16 @@
 {
     "posts": [
 		{
+			"title": "Kolar Pitha",
+			"year": 2026,
+			"month": 7,
+			"day": 14,
+			"subtitle": null,
+			"encrypted": true,
+			"content": "<p>It's been really hot lately. I've adapted to the heat but my apartment never drops below 25 C (77 F). I think I'm starting to forget what the cold feels like. Yesterday I made Kolar Pitha (Bengali Banana Fritters) because I had a bunch of very ripe bananas. They turned out pretty well, but I probably won't make them again because deep frying stuff is a pain. I mean that literally by the way: I have two blisters on my hand right now from the hot oil.</p><p>I've been working on projects lately, in particular I've been working on a new project that I plan on officially adding to the website tomorrow. It's a take on the game mosaic but generalized to any number of colors. I have a long list in my head of things I want to try with it, mostly centered around generating harder puzzles and new rules for defining a cell's neighborhood. Despite spending a lot of time on this project, I also spent more time on Caerostris. The skirt is finally finished and now all I need to do is wire up the Y endstop and flash the firmware before I have a functioning printer. The sentiment from one of my previous posts about how I hope I don't start any new projects and instead work on ones that are currently taking up space was dumb. Working on projects makes me want to work on more projects, Mind Begets Mind. I've had this printer in an unfinished state next to me for just over 6 months now and I'm really excited for it to be finished.</p><p>In other good news I should finally be able to stop working from home. Working from home has certainly had it's benefits but I can't wait to be back in the office. I never realized how much information I gained from being in an office and half-listening to everything everyone else is talking about. Additionally, it's a lot harder to be productive when the separation between work and life is so thin.</p>"
+
+		},
+		{
 			"title": "Weekend Update",
 			"year": 2026,
 			"month": 6,
