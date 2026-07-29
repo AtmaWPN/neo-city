@@ -16,33 +16,68 @@
     <div id="content">
       <h2>Coding projects small enough to run in the browser</h2>
       <br>
-      
-      <h3>8Vim Demo for Gamepad and Mouse</h3>
-      <p>I made this because I got a little obsessed with 8Vim.</p>
-      <p>If you have a gamepad connected, make any input to start using it, not all gamepads are supported.</p>
-      <p>The right joystick moves between sectors and the right trigger presses and un-presses.</p>
-      <p>If you don't have a compatible gamepad you can use your mouse.</p>
-
-      <textarea id="8vim-input" rows="5" cols="80" autofocus></textarea><br>
-      <canvas id="8vim-keyboard" width="512" height="512"></canvas>
-
-      <h3>Cipher</h3>
-
-      <p>This is a neat little cipher that I made for encrypting HTML content.</p>
-      <p>I based it on an old cipher that I read about and modified to skip HTML tags and use the full range of printable ASCII characters.</p>
-      <p>I use this cipher for information that I want to be difficult but possible to access.</p>
-
       <div>
-        <button class="function" onclick="toggleMode()">ToggleMode()</button><br>
-        <label>Current Mode:</label><span class="string" id="cipher-mode">Encipher</span>
+        <h3>N-Mosaic</h3>
+
+        <p>I was inspired by the game <a href="https://www.proverbsgame.com/">Proverbs</a> to make my own variant of the classic Mosaic puzzle.</p>
+        <p>In N-Mosaic, clues have an associated color that indicates the number of cells in it's neighbourhood that are that color.</p>
+        <p>Left-Click to color a cell, Right-Click to clear a cell, Scroll Wheel to change the currently selected color.</p>
+
+        <div id="n_mosaic_controls">
+          <label for="n_mosaic_width">Width:</label>
+          <input type="number" id="n_mosaic_width" value="10" min="2" max="32">
+          <label for="n_mosaic_height">Height:</label>
+          <input type="number" id="n_mosaic_height" value="10" min="2" max="32">
+          <label for="n_mosaic_colors">Colors:</label>
+          <input type="number" id="n_mosaic_colors" value="3" min="2" max="8">
+          <label for="n_mosaic_shape_fraction">Shape Fraction:</label>
+          <input type="number" id="n_mosaic_shape_fraction" value="0.75" min="0.05" max="1.0" step="0.05">
+          <label for="n_mosaic_difficulty">Difficulty:</label>
+          <select id="n_mosaic_difficulty">
+            <option value="easy">easy</option>
+            <option value="random">random</option>
+          </select>
+        </div>
+        <div id="n_mosaic_game" style="display: flex; gap: 4px;">
+          <canvas id="n_mosaic_board" width="576" height="576"></canvas>
+          <canvas id="n_mosaic_palette" width="72" height="576"></canvas>
+        </div>
+        <div>
+          <button id="n_mosaic_regenerate" class="function">Regenerate()</button>
+          <button id="n_mosaic_reveal_solution" class="function">ShowSolution()</button>
+        </div>
       </div>
 
-      <label for="blog-content-input">Input:</label><br><input id="blog-content-input" /><br>
-      <label for="encryption-key-input">Key:</label><br><input id="encryption-key-input" /><br>
+      <div>
+        <h3>8Vim Demo for Gamepad and Mouse</h3>
+        <p>I made this because I got a little obsessed with 8Vim.</p>
+        <p>If you have a gamepad connected, make any input to start using it, not all gamepads are supported.</p>
+        <p>The right joystick moves between sectors and the right trigger presses and un-presses.</p>
+        <p>If you don't have a compatible gamepad you can use your mouse.</p>
+
+        <textarea id="8vim-input" rows="5" cols="80" autofocus></textarea><br>
+        <canvas id="8vim-keyboard" width="384" height="384"></canvas>
+      </div>
       
-      <button class="function" onclick="encrypt()">submit()</button>
-      <h4>Result:</h4>
-      <div id="encrypted-blog-content"></div>
+      <div>
+        <h3>Cipher</h3>
+
+        <p>This is a neat little cipher that I made for encrypting HTML content.</p>
+        <p>I based it on an old cipher that I read about and modified to skip HTML tags and use the full range of printable ASCII characters.</p>
+        <p>I use this cipher for information that I want to be difficult but possible to access.</p>
+
+        <div>
+          <button class="function" onclick="toggleMode()">ToggleMode()</button><br>
+          <label>Current Mode:</label><span class="string" id="cipher-mode">Encipher</span>
+        </div>
+
+        <label for="blog-content-input">Input:</label><br><input id="blog-content-input" /><br>
+        <label for="encryption-key-input">Key:</label><br><input id="encryption-key-input" /><br>
+        
+        <button class="function" onclick="encrypt()">submit()</button>
+        <h4>Result:</h4>
+        <div id="encrypted-blog-content"></div>
+      </div>
     </div>
 
     <script src="helpers/cipher.js"></script>
@@ -50,6 +85,7 @@
     <script src="helpers/style_processor.js"></script>
     <script src="helpers/line_numbers.js"></script>
     <script src="coding/8vim_controller.js"></script>
+    <script src="coding/n_mosaic.js"></script>
     <a href="index.html" style="display:flex; cursor:pointer; align-items:center; position:fixed; inset-inline-start: 1em; inset-block-end: 1em;"><img src="favicon.ico"><em style="margin-left:1em;">RETURN</em></a>
     <div style="display:flex; flex-direction: column; align-items:flex-end; position:fixed; inset-inline-end: 1em; inset-block-end: 1em;">
       <a target="_blank" rel="noopener noreferrer" href="https://github.com/AtmaWPN" style="display:flex; align-items:center;"><img src="assets/GitHub_Invertocat_White.svg" height="64px"></a>

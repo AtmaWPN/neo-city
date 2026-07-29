@@ -111,6 +111,7 @@ label {
 
 textarea {
   padding: 0;
+  line-height: 1.48;
   background-color: var(--background);
   border-color: var(--line);
   color: var(--string);

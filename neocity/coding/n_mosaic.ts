@@ -1,3 +1,7 @@
+// TODO: Publish to website
+//  Description
+//  Rules
+
 // TODO: Puzzle Generation
     // Simple Remainder
     // Excluded Difference
@@ -41,15 +45,15 @@ class NMosaicClue {
 
 class NMosaic {
     PALETTE = [
-        "#3498db",
-        "#f1c40f",
-        "#2ecc71",
-        "#9b59b6",
-        "#e74c3c",
-        "#e67e22",
-        "#1abc9c",
-        "#34495e",
-    ]
+      "#cb4450",
+      "#70c941",
+      "#3888cb",
+      "#c9ae38",
+      "#8a49cc",
+      "#ca7b35",
+      "#3bc9be",
+      "#34495e"
+    ];
     ctx: CanvasRenderingContext2D;
     paletteCtx: CanvasRenderingContext2D;
 
@@ -123,11 +127,13 @@ class NMosaic {
 
                 let rng = Math.random() * totalWeight;
                 let newClueCell: NMosaicCell | undefined;
-                clueWeights.forEach((weight, index) => {
+                clueWeights.find((weight, index) => {
                     rng -= weight;
                     if (rng < 0) {
                         newClueCell = possibleClues[index];
+                        return true;
                     }
+                    return false;
                 })
                 
                 if (newClueCell) {
@@ -280,7 +286,7 @@ class NMosaic {
     drawBoard() {
         const squareWidth = this.WIDTH / this.BOARD_WIDTH;
         const squareHeight = this.HEIGHT / this.BOARD_HEIGHT;
-        const fontSize = Math.max(10, Math.min(squareWidth, squareHeight) * 0.45);
+        const fontSize = Math.max(10, Math.min(squareWidth, squareHeight) * 0.6);
 
         for (const cell of this.cells) {
             if (!cell.included) {
@@ -305,7 +311,7 @@ class NMosaic {
             }
         }
 
-        this.ctx.font = `${fontSize}px "Roboto Mono", monospace`;
+        this.ctx.font = `bold ${fontSize}px "Roboto Mono", monospace`;
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
         this.clues.forEach((clue) => {
@@ -341,7 +347,7 @@ class NMosaic {
 
             this.ctx.fillStyle = this.PALETTE[clue.color];
             this.ctx.fillText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);
-            this.ctx.font = `${fontSize + 2}px "Roboto Mono", monospace`;
+            this.ctx.font = `bold ${fontSize + 2}px "Roboto Mono", monospace`;
             this.ctx.strokeStyle = "#000000"; //clueCell.color === 0 ? "#ffffff" : "#000000";
             this.ctx.lineWidth = 1;
             this.ctx.strokeText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);
@@ -370,37 +376,6 @@ function nMosaicMain() {
     const difficultyInput = document.getElementById("n_mosaic_difficulty")!! as HTMLSelectElement;
     const nMosaic: NMosaic = new NMosaic(parseInt(heightInput.value), parseInt(widthInput.value), parseInt(colorsInput.value), parseFloat(shapeFractionInput.value), difficultyInput.value, canvas, paletteCanvas);
 
-    function handleBoardClick(e: MouseEvent) {
-        if (nMosaic.puzzleComplete) return;
-        const rect = canvas.getBoundingClientRect();
-        const x = e.clientX - rect.left;
-        const y = e.clientY - rect.top;
-        const squareWidth = nMosaic.WIDTH / nMosaic.BOARD_WIDTH;
-        const squareHeight = nMosaic.HEIGHT / nMosaic.BOARD_HEIGHT;
-
-        const col = Math.floor(x / squareWidth);
-        const row = Math.floor(y / squareHeight);
-
-        const cell = nMosaic.getCell(row, col);
-        if (cell !== null && cell.included) {
-            if (e.button === 2) {
-                cell.color = null;
-            } else if (e.button === 0) {
-                cell.color = nMosaic.selectedColor;
-            }
-
-            const allCluesValid = nMosaic.clues.every((clue) => {
-                const clueCell = nMosaic.getCell(clue.row, clue.col);
-                if (!clueCell) return false;
-                const guessCount = clueCell.neighbors.filter((neighbor) => neighbor.color === clue.color).length;
-                return guessCount === clue.count;
-            })
-            if (nMosaic.cells.every((cell) => !cell.included || cell.color !== null) && allCluesValid) {
-                nMosaic.puzzleComplete = true;
-            }
-        }
-    }
-
     function handlePaletteClick(e: MouseEvent) {
         const rect = paletteCanvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -427,6 +402,20 @@ function nMosaicMain() {
         nMosaic.selectedColor = (nMosaic.selectedColor + direction + nMosaic.BOARD_COLORS) % nMosaic.BOARD_COLORS;
     }
 
+    function selectColorByNumber(num: number) {
+        if (num >= 1 && num <= nMosaic.BOARD_COLORS) {
+            nMosaic.selectedColor = num - 1;
+        }
+    }
+
+    function handleKeyDown(e: KeyboardEvent) {
+        if (e.key >= "1" && e.key <= "9") {
+            selectColorByNumber(parseInt(e.key, 10));
+        }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
     function handleWheel(e: WheelEvent) {
         e.preventDefault();
         if (e.deltaY > 0) {
@@ -436,7 +425,58 @@ function nMosaicMain() {
         }
     }
 
-    canvas.addEventListener("mousedown", handleBoardClick);
+    let isPainting = false;
+    let paintButton: number = 0;
+
+    function paintAt(x: number, y: number) {
+        if (nMosaic.puzzleComplete) return;
+        const squareWidth = nMosaic.WIDTH / nMosaic.BOARD_WIDTH;
+        const squareHeight = nMosaic.HEIGHT / nMosaic.BOARD_HEIGHT;
+
+        const col = Math.floor(x / squareWidth);
+        const row = Math.floor(y / squareHeight);
+
+        const cell = nMosaic.getCell(row, col);
+        if (cell !== null && cell.included) {
+            if (paintButton === 2) {
+                cell.color = null;
+            } else if (paintButton === 0) {
+                cell.color = nMosaic.selectedColor;
+            }
+
+            const allCluesValid = nMosaic.clues.every((clue) => {
+                const clueCell = nMosaic.getCell(clue.row, clue.col);
+                if (!clueCell) return false;
+                const guessCount = clueCell.neighbors.filter((neighbor) => neighbor.color === clue.color).length;
+                return guessCount === clue.count;
+            });
+            if (nMosaic.cells.every((cell) => !cell.included || cell.color !== null) && allCluesValid) {
+                nMosaic.puzzleComplete = true;
+            }
+        }
+    }
+
+    function startPaint(e: MouseEvent) {
+        isPainting = true;
+        paintButton = e.button;
+        const rect = canvas.getBoundingClientRect();
+        paintAt(e.clientX - rect.left, e.clientY - rect.top);
+    }
+
+    function continuePaint(e: MouseEvent) {
+        if (!isPainting) return;
+        const rect = canvas.getBoundingClientRect();
+        paintAt(e.clientX - rect.left, e.clientY - rect.top);
+    }
+
+    function endPaint() {
+        isPainting = false;
+    }
+
+    canvas.addEventListener("mousedown", startPaint);
+    canvas.addEventListener("mousemove", continuePaint);
+    window.addEventListener("mouseup", endPaint);
+
     paletteCanvas.addEventListener("mousedown", handlePaletteClick);
 
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
