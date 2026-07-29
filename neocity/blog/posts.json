@@ -6,9 +6,17 @@
 			"month": 7,
 			"day": 14,
 			"subtitle": null,
-			"encrypted": true,
+			"encrypted": false,
 			"content": "<p>It's been really hot lately. I've adapted to the heat but my apartment never drops below 25 C (77 F). I think I'm starting to forget what the cold feels like. Yesterday I made Kolar Pitha (Bengali Banana Fritters) because I had a bunch of very ripe bananas. They turned out pretty well, but I probably won't make them again because deep frying stuff is a pain. I mean that literally by the way: I have two blisters on my hand right now from the hot oil.</p><p>I've been working on projects lately, in particular I've been working on a new project that I plan on officially adding to the website tomorrow. It's a take on the game mosaic but generalized to any number of colors. I have a long list in my head of things I want to try with it, mostly centered around generating harder puzzles and new rules for defining a cell's neighborhood. Despite spending a lot of time on this project, I also spent more time on Caerostris. The skirt is finally finished and now all I need to do is wire up the Y endstop and flash the firmware before I have a functioning printer. The sentiment from one of my previous posts about how I hope I don't start any new projects and instead work on ones that are currently taking up space was dumb. Working on projects makes me want to work on more projects, Mind Begets Mind. I've had this printer in an unfinished state next to me for just over 6 months now and I'm really excited for it to be finished.</p><p>In other good news I should finally be able to stop working from home. Working from home has certainly had it's benefits but I can't wait to be back in the office. I never realized how much information I gained from being in an office and half-listening to everything everyone else is talking about. Additionally, it's a lot harder to be productive when the separation between work and life is so thin.</p>"
-
+		},
+		{
+			"title": "Recent Trends",
+			"year": 2026,
+			"month": 7,
+			"day": 8,
+			"subtitle": null,
+			"encrypted": true,
+			"content": "<p>n?0@3:-0d5sD@H]NG~@?0? edjXDBPWm@.05-0y5sD@VP}8@0E/=&gdhhOP&?8:ViMk,hi\"n!,;4Tv-D@-!+zI_OUOOh0:2GI_`igd;7E75?gO!8LpMcdD0?39jM#=W</p>"
 		},
 		{
 			"title": "Weekend Update",
@@ -16,9 +24,8 @@
 			"month": 6,
 			"day": 22,
 			"subtitle": null,
-			"encrypted": true,
+			"encrypted": false,
 			"content": "<p>This week I printed a 3D model of the M12 group, I got the model from <a href=\"https://www.youtube.com/watch?v=xwQ5dx4dE9g&t=137s\">this video</a> about turning several of the Sporadic Groups into puzzles. The model came together without too much trouble, but I haven't made any progress on solving it yet. Printing out the puzzle also stalled progress on Caerostris as I need to print out the skirt pieces next.</p><p>I crashed my motorcycle on the way to the family reunion I mentioned in my previous post, but both I and my motorcycle have recovered now. The new tire they put on feels a bit different than the old one so I plan on dedicating some time to practicing slow speed maneuvers and improving my skills overall. I'm pretty sure there was very little I could have done to avoid lowsiding after my front tire blew, but more skill equals more safe regardless of that specific instance.</p><p>I went to a Ross to get new clothes last week, and much to my surprise I enjoyed the experience. I got new shorts and a new t-shirt and I've been very pleased with them. I'll probably go back soon because with my apartment AC not working I need more than two pairs of shorts.</p><p>I've been feeling a tendency to work on projects lately so I hope I can channel that into finishing the projects that are currently taking up space in my apartment rather than starting something new.</p>"
-
 		},
         {
             "title": "Family Reunion",
