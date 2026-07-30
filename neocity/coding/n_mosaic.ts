@@ -1,12 +1,8 @@
-// TODO: Publish to website
-//  Description
-//  Rules
-
 // TODO: Puzzle Generation
     // Simple Remainder
     // Excluded Difference
     // Subset Restriction
-// TODO: Multi-Color Input
+    // Hard Mode (SAT Solver)
 // TODO: Puzzle Generation Options and Descriptions
 // TODO: Hint System?
 // TODO: Project Writeup
@@ -345,9 +341,9 @@ class NMosaic {
                 this.ctx.stroke();
             }
 
+            this.ctx.font = `bold ${fontSize + 2}px "Roboto Mono", monospace`;
             this.ctx.fillStyle = this.PALETTE[clue.color];
             this.ctx.fillText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);
-            this.ctx.font = `bold ${fontSize + 2}px "Roboto Mono", monospace`;
             this.ctx.strokeStyle = "#000000"; //clueCell.color === 0 ? "#ffffff" : "#000000";
             this.ctx.lineWidth = 1;
             this.ctx.strokeText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);

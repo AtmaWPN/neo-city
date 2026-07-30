@@ -287,9 +287,9 @@
           this.ctx.lineTo(x1, y2);
           this.ctx.stroke();
         }
+        this.ctx.font = `bold ${fontSize + 2}px "Roboto Mono", monospace`;
         this.ctx.fillStyle = this.PALETTE[clue.color];
         this.ctx.fillText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);
-        this.ctx.font = `bold ${fontSize + 2}px "Roboto Mono", monospace`;
         this.ctx.strokeStyle = "#000000";
         this.ctx.lineWidth = 1;
         this.ctx.strokeText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);
@@ -421,6 +421,35 @@
       requestAnimationFrame(gameLoop);
     }
     requestAnimationFrame(gameLoop);
+    const logButton = document.getElementById("n_mosaic_log");
+    const logUniqueInput = document.getElementById("n_mosaic_log_unique");
+    const logRowsInput = document.getElementById("n_mosaic_log_rows");
+    logButton.onclick = () => {
+      mosaicLog(parseInt(logUniqueInput.value), parseInt(logRowsInput.value));
+    };
   }
   nMosaicMain();
+  function mosaicLog(uniqueCount, rowCount) {
+    const numbers = Array.from({ length: uniqueCount }, (_, i) => i + 1);
+    let result = "";
+    const seen = /* @__PURE__ */ new Set();
+    for (let i = 0; i < rowCount; i++) {
+      let line;
+      let attempts = 0;
+      do {
+        const subsetSize = Math.floor(Math.random() * (uniqueCount - 1)) + 2;
+        const shuffled = [...numbers].sort(() => Math.random() - 0.5);
+        const selected = shuffled.slice(0, subsetSize).sort((a, b) => a - b);
+        line = selected.map((num) => {
+          const prefix = Math.random() < 0.5 ? "-" : "";
+          return prefix + num;
+        }).join(" ") + " 0";
+        attempts++;
+      } while (seen.has(line) && attempts < 1e3);
+      seen.add(line);
+      result += line + "\n";
+    }
+    console.log(result);
+    return result;
+  }
 })();

@@ -111,14 +111,19 @@ label {
 
 textarea {
   padding: 0;
-  line-height: 1.48;
+  line-height: 1.5;
   background-color: var(--background);
-  border-color: var(--line);
+  border: none;
+  display: inline-block;
+  outline: 1px solid var(--line);
   color: var(--string);
-  border-width: 1px;
   font-family: "Roboto Mono";
   font-weight: 512;
   font-size: 16px;
+}
+
+canvas {
+  display: inline-block;
 }
 
 input {
