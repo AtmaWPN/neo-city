@@ -1,6 +1,15 @@
 {
     "posts": [
 		{
+			"title": "N-Mosaic",
+			"year": 2026,
+			"month": 8,
+			"day": "Unknown",
+			"subtitle": null,
+			"encrypted": false,
+			"content": "<p>I've been working on N-Mosaic lately. There are two new difficulties I want to add: one involving a new technique I call Total Neighbourhood Sum, and one involving a SAT Solver a.k.a. the big guns.</p><p>The Total Neighbourhood Sum technique says that when the total area of the neighbourhoods of two differently colored clues is equal to the total of the two clues, all cells that are only in the neighbourhood of one of those clues are the color of that clue. As you can see, this is the sort of thing that benefits from visualisations. TODO: add visualisations. Implementing it is a lot trickier than simple remainder because it involves multiple clues. My current system for puzzle generation makes a list of all possible next techniques to apply along with the probability of that technique being chosen. For the simple remainder technique the available cells for the clue are any that don't have a clue and do have at least one undefined cell. For this new technique I need</p>"
+		},
+		{
 			"title": "Finally Returned to Office",
 			"year": 2026,
 			"month": 7,

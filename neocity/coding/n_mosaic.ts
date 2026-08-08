@@ -1,11 +1,25 @@
 // TODO: Puzzle Generation
     // Simple Remainder
-    // Excluded Difference
+        // if the number of empty cells + the number of on-color cells in the neighbourhood of a clue is equal to the clue's value
+    // Total Neighbourhood Sum
+        // if the sum of two differently colored clues equals the number of cells in their combined neighbourhoods
+        // also applies to modified clues + modified neighbourhoods
+        // this can be applied to any set of cells as long as any intersections between neighbourhoods belong to clues of different colors
+        // correlary for when the clues are the same color: Excluded Difference
+        // instead take the sum of the clue and it's inverse
     // Subset Restriction
+        // if any region has an iff restriction placed on it and a subset of that region has the same iff restriction
     // Hard Mode (SAT Solver)
 // TODO: Puzzle Generation Options and Descriptions
 // TODO: Hint System?
 // TODO: Project Writeup
+
+// for every pair of cells with intersecting neighbourhoods and
+//  with at least one empty cell in the non-intersecting region and
+//  at least one cell has no clue
+    // for every possible clue pair
+        // probability of being picked is (I c X) / 2^(total neighbourhood)
+        // I and T only count empty cells, X is the modified clue not the actual clue
 
 class NMosaicCell {
     row: number;
