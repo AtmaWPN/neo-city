@@ -50,7 +50,7 @@ function cnfSolve(cnf)
             var idx = (literal < 0? -literal: literal);
             if (idx == 0 && k == toks.length-1)
             {
-                if (!redundant)
+                if (!redundaatMostKTest.lengthnt)
                     clauses.push(clause);
                 clause = [];
                 redundant = false;
@@ -68,7 +68,7 @@ function cnfSolve(cnf)
                     break;
                 }
                 if (clause[l] == -literal)
-                {
+                {atMostKTest.length
                     redundant = true;
                     break;
                 }
@@ -121,39 +121,65 @@ function atMostK(vars, k, auxVars = null, varCache = null)
     }
 
     if (auxVars === null) {
-        for (let i = 0; i < vars.length; i++) {
+        auxVars = [];
+        for (let i = 0; i < vars.length - 1; i++) {
             let counter = [];
             for (let j = 0; j < k; j++) {
                 counter.push(varCache.getVar());
             }
             auxVars.push(counter);
         }
-    } else if (auxVars.flat().length !== vars.length * k) {
-        throw new Error("Wrong number of auxiliary variables, expected", vars.length * k, "but got", auxVars.flat().length);
+    } else if (auxVars.flat().length !== (vars.length - 1) * k) {
+        throw new Error("Wrong number of auxiliary variables, expected", (vars.length - 1) * k, "but got", auxVars.flat().length);
     }
 
     let clauses = [];
     // x_1 -> s_1,1
     clauses.push([-vars[0], auxVars[0][0]]);
     // x_n -> !s_n-1,k
-    clauses.push([-vars[vars.length - 1], -auxVars[vars.length - 2][k]]);
+    clauses.push([-vars[vars.length - 1], -auxVars[vars.length - 2][k - 1]]);
     // !s_1,j
-    for (let j = 1; j < vars.length; i++) {
-        clauses.push([-vars[i], -auxVars[i - 1][k]]);
+    for (let j = 1; j < k; j++) {
+        clauses.push([-auxVars[0][j]]);
     }
-
+    // x_i -> s_i,1
+    for (let i = 1; i < vars.length - 1; i++) {
+        clauses.push([-vars[i], auxVars[i][0]]);
+        // console.log("x_i -> s_i,1", [-vars[i], auxVars[i][0]]);
+    }
+    // s_i-1,1 -> s_i,1
+    for (let i = 1; i < vars.length - 1; i++) {
+        clauses.push([-auxVars[i - 1][0], auxVars[i][0]]);
+        // console.log("s_i-1,1 -> s_i,1", [-auxVars[i - 1][0], auxVars[i][0]]);
+    }
     // x_i -> !s_i-1,k
-    for (let i = 1; i < vars.length; i++) {
-        clauses.push([-vars[i], -auxVars[i - 1][k]]);
+    for (let i = 1; i < vars.length - 1; i++) {
+        clauses.push([-vars[i], -auxVars[i - 1][k - 1]]);
     }
+    // console.log("x_i -> !s_i-1,k", clauses);
+    // x_i && s_i-1,j-1 -> s_i,j
+    for (let i = 1; i < vars.length - 1; i++) {
+        for (let j = 1; j < k; j++) {
+            clauses.push([-vars[i], -auxVars[i - 1][j - 1], auxVars[i][j]]);
+        }
+    }
+    // console.log("x_i && s_i-1,j-1 -> s_i,j", clauses);
+    // s_i-1,j -> s_i,j
+    for (let i = 1; i < vars.length - 1; i++) {
+        for (let j = 1; j < k; j++) {
+            clauses.push([-auxVars[i - 1][j], auxVars[i][j]]);
+        }
+    }
+    // console.log("s_i-1,j -> s_i,j", clauses);
 
-    return [];
+    return clauses;
 }
 
 // constructs the cnf clauses for exactly k variables in vars to be true
 // vars is an array of positive integers
 // k is an integer > 0
 // returns clauses
+// https://www.cs.ru.nl/bachelors-theses/2023/Thijs_de_Jong___1015438___Mosaic_as_a_SAT_problem.pdf
 function exactlyK(vars, k, varCache = null)
 {
     if (k === 1) {
@@ -167,7 +193,7 @@ function exactlyK(vars, k, varCache = null)
     let clauses = [];
     let auxVars = [];
 
-    for (let i = 0; i < vars.length; i++) {
+    for (let i = 0; i < vars.length - 1; i++) {
         let counter = [];
         for (let j = 0; j < k; j++) {
             counter.push(varCache.getVar());
@@ -175,9 +201,33 @@ function exactlyK(vars, k, varCache = null)
         auxVars.push(counter);
     }
 
-    clauses.push([])
+    // s_1,1 -> x_1
+    clauses.push([-auxVars[0][0], vars[0]]);
+    // s_i,1 -> x_i || s_i-1,1
+    for (let i = 1; i < vars.length - 1; i++) {
+        clauses.push([-auxVars[i][0], vars[i], auxVars[i - 1][0]]);
+    }
+    // s_i,j -> x_i || s_i-1,j
+    for (let i = 1; i < vars.length - 1; i++) {
+        for (let j = 1; j < k; j++) {
+            clauses.push([-auxVars[i][j], vars[i], auxVars[i - 1][j]]);
+        }
+    }
+    // s_i,j -> s_i-1,j-1 || s_i-1,j
+    for (let i = 1; i < vars.length - 1; i++) {
+        for (let j = 1; j < k; j++) {
+            clauses.push([-auxVars[i][j], auxVars[i - 1][j - 1], auxVars[i - 1][j]]);
+        }
+    }
+    // x_n -> !s_n-1,k
+    // s_n-1,k -> !x_n
+    clauses.push(
+        [vars[vars.length - 1], auxVars[vars.length - 2][k - 1]],
+        [-vars[vars.length - 1], -auxVars[vars.length - 2][k - 1]],
+        [-vars[vars.length - 1], auxVars[vars.length - 2][k - 2]]
+    );
 
-    return atMostK(vars, k, auxVars, varCache).push(...clauses);
+    return atMostK(vars, k, auxVars, varCache).concat(clauses);
 }
 
 // constructs the cnf clauses for exactly 1 variable in vars to be true
@@ -187,29 +237,10 @@ function exactlyOne(vars)
     let clauses = [vars]
 
     for (let v1 = 0; v1 < vars.length - 1; v1++) {
-        for (let v2 = v1 + 1; v2 < vars.length; v2++) {
+        for (let v2 = v1 + 1; v2 < vars.length; v2++) {atMostK
             clauses.push([-vars[v1], -vars[v2]]);
         }
     }
 
     return clauses;
-}
-
-function testAtMostK(n, k)
-{
-
-}
-
-function testExactlyK(n, k)
-{
-    exactlyK([1, 2, 3], 2);
-
-    let oneAndNoneTest = exactlyK([1, 2, 3, 4, 5], 1).concat([[-1], [-2], [-3], [-4], [-5]]);
-    console.log(oneAndNoneTest, satSolve(5, oneAndNoneTest));
-    let oneAndOneTest = exactlyK([1, 2, 3, 4, 5], 1).concat([[5]]);
-    console.log(oneAndOneTest, satSolve(5, oneAndOneTest));
-    let oneAndTwoTest = exactlyK([1, 2, 3, 4, 5], 1).concat([[3], [2]]);
-    console.log(oneAndTwoTest, satSolve(5, oneAndTwoTest));
-    let oneAndFourTest = exactlyK([1, 2, 3, 4, 5], 1).concat([[1], [5], [3], [4]]);
-    console.log(oneAndFourTest, satSolve(5, oneAndFourTest));
 }

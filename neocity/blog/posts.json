@@ -1,13 +1,13 @@
 {
     "posts": [
 		{
-			"title": "N-Mosaic",
+			"title": "N-Mosaic SAT Difficulty",
 			"year": 2026,
 			"month": 8,
-			"day": "Unknown",
+			"day": 10,
 			"subtitle": null,
 			"encrypted": false,
-			"content": "<p>I've been working on N-Mosaic lately. There are two new difficulties I want to add: one involving a new technique I call Total Neighbourhood Sum, and one involving a SAT Solver a.k.a. the big guns.</p><p>The Total Neighbourhood Sum technique says that when the total area of the neighbourhoods of two differently colored clues is equal to the total of the two clues, all cells that are only in the neighbourhood of one of those clues are the color of that clue. As you can see, this is the sort of thing that benefits from visualisations. TODO: add visualisations. Implementing it is a lot trickier than simple remainder because it involves multiple clues. My current system for puzzle generation makes a list of all possible next techniques to apply along with the probability of that technique being chosen. For the simple remainder technique the available cells for the clue are any that don't have a clue and do have at least one undefined cell. For this new technique I need</p>"
+			"content": "<p>I've been working on N-Mosaic lately. There are two new difficulties I want to add: one involving a new technique I call Total Neighbourhood Sum, and one involving a SAT Solver a.k.a. the big guns.</p><p>The Total Neighbourhood Sum technique says that when the total area of the neighbourhoods of two differently colored clues is equal to the total of the two clues, all cells that are only in the neighbourhood of one of those clues are the color of that clue. As you can see, this is the sort of thing that benefits from visualisations. [TODO: add visualisations]. Implementing it is a lot trickier than simple remainder because it involves multiple clues. My current system for puzzle generation makes a list of all possible next techniques to apply along with the probability of that technique being chosen. For the simple remainder technique the available cells for the clue are any that don't have a clue and do have at least one undefined cell.</p><p>The SAT Solver difficulty will be created using modified versions of the techniques described in <a href=\"https://www.cs.ru.nl/bachelors-theses/2023/Thijs_de_Jong___1015438___Mosaic_as_a_SAT_problem.pdf\">this paper</a>. A SAT solver can be used to solve NP-Complete problems as long as you can represent the problem in <a href=\"https://en.wikipedia.org/wiki/Conjunctive_normal_form\">CNF</a>. To generate puzzles with it I will generate a random puzzle with all the clues and remove clues at random while using the SAT solver to make sure the puzzle still has a unique solution until I can no longer remove clues. I found a SAT-solver written in javascript that I added to the project. SAT solvers are very complicated algorithms, so I'm glad to not have to implement one myself or import a package. So far I've written and thoroughly tested the helper functions I'll need in order to represent an N-Mosaic board in CNF. The two constraints N-Mosaic puzzles have are 1. every cell must contain exactly one color, and 2. clues must have the same number of cells that match the clue color in it's neighbourhood as the clue value.</p>"
 		},
 		{
 			"title": "Finally Returned to Office",
