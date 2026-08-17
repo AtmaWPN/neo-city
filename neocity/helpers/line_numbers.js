@@ -36,7 +36,10 @@ function main() {
   var lines = "";
   
   function setLineNumbers() {
-    lines = "<li></li>".repeat(content.offsetHeight / getLineHeight(content));
+    // Round to nearest line-height multiple so fractional iframe heights
+    // don't cause the count to drift off from the actual grid
+    var count = Math.round(content.offsetHeight / getLineHeight(content));
+    lines = "<li></li>".repeat(count);
     if (lineNumbers.innerHTML !== lines) lineNumbers.innerHTML = lines;
     requestAnimationFrame(setLineNumbers);
   }

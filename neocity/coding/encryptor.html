@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATMAWEAPON</title>
+    <link href="../style.css" rel="stylesheet" type="text/css" media="all">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+  </head>
+  <body class="page">
+    <h3>Cipher</h3>
+
+    <p>This is a neat little cipher that I made for encrypting HTML content.</p>
+    <p>I based it on an old cipher that I read about and modified to skip HTML tags and use the full range of printable ASCII characters.</p>
+    <p>I use this cipher for information that I want to be difficult but possible to access.</p>
+
+    <div>
+      <button class="function" onclick="toggleMode()">ToggleMode()</button><br>
+      <label>Current Mode:</label><span class="string" id="cipher-mode">Encipher</span>
+    </div>
+
+    <label for="blog-content-input">Input:</label><br><input id="blog-content-input" /><br>
+    <label for="encryption-key-input">Key:</label><br><input id="encryption-key-input" /><br>
+    
+    <button class="function" onclick="encrypt()">submit()</button>
+    <h4>Result:</h4>
+    <div id="encrypted-blog-content"></div>
+
+    <script src="../helpers/cipher.js"></script>
+    <script src="encryptor.js"></script>
+  </body>
+</html>
