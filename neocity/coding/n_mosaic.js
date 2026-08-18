@@ -138,6 +138,70 @@
           const clue = new NMosaicClue(cell.row, cell.col, bestClueColor, bestClueCount);
           this.clues.push(clue);
         }
+      } else if (this.BOARD_DIFFICULTY === "sat") {
+        const maxAttempts = 10;
+        let allClues = [];
+        let attempts = 0;
+        do {
+          for (const cell of this.cells) {
+            if (!cell.included) continue;
+            cell.solutionColor = Math.floor(Math.random() * this.BOARD_COLORS);
+          }
+          allClues = [];
+          for (const cell of this.cells) {
+            if (!cell.included) continue;
+            for (let k = 0; k < this.BOARD_COLORS; k++) {
+              const count = cell.neighbors.filter((neighbor) => neighbor.solutionColor === k).length;
+              allClues.push(new NMosaicClue(cell.row, cell.col, k, count));
+            }
+          }
+          attempts++;
+        } while (!this.satHasUniqueSolution(allClues) && attempts < maxAttempts);
+        if (attempts >= maxAttempts) {
+          console.warn(
+            "SAT difficulty: no unique solution after",
+            maxAttempts,
+            "attempts. Try more colors or a larger board."
+          );
+        }
+        const retainedClues = allClues.slice();
+        const cluesPerCell = /* @__PURE__ */ new Map();
+        for (const clue of allClues) {
+          const key = `${clue.row},${clue.col}`;
+          cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) + 1);
+        }
+        const shuffledPhase1 = allClues.slice().sort(() => Math.random() - 0.5);
+        for (const clue of shuffledPhase1) {
+          const key = `${clue.row},${clue.col}`;
+          if ((cluesPerCell.get(key) ?? 0) <= 1) continue;
+          const index = retainedClues.indexOf(clue);
+          if (index === -1) continue;
+          retainedClues.splice(index, 1);
+          if (this.satHasUniqueSolution(retainedClues)) {
+            cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
+          } else {
+            retainedClues.splice(index, 0, clue);
+          }
+        }
+        let progress = true;
+        while (progress) {
+          progress = false;
+          const shuffledPhase2 = retainedClues.slice().sort(() => Math.random() - 0.5);
+          for (const clue of shuffledPhase2) {
+            const key = `${clue.row},${clue.col}`;
+            if ((cluesPerCell.get(key) ?? 0) === 0) continue;
+            const index = retainedClues.indexOf(clue);
+            if (index === -1) continue;
+            retainedClues.splice(index, 1);
+            if (this.satHasUniqueSolution(retainedClues)) {
+              cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
+              progress = true;
+            } else {
+              retainedClues.splice(index, 0, clue);
+            }
+          }
+        }
+        this.clues = retainedClues;
         console.log(this.clues);
       } else {
         console.log("Unrecognized Difficulty Option");
@@ -186,6 +250,49 @@
     getCell(row, col) {
       if (row < 0 || row >= this.BOARD_HEIGHT || col < 0 || col >= this.BOARD_WIDTH) return null;
       return this.cells[row * this.BOARD_WIDTH + col];
+    }
+    // ─── SAT encoding & solving ─────────────────────────────────────────
+    /** Maps (row, col, color) to a 1-based SAT variable id. */
+    varId(row, col, color) {
+      return row * this.BOARD_WIDTH * this.BOARD_COLORS + col * this.BOARD_COLORS + color + 1;
+    }
+    /**
+     * Encodes the puzzle (each included cell has exactly one color; every
+     * clue counts the correct number of same-coloured neighbours) as CNF and
+     * checks that the intended solution is the unique satisfying assignment.
+     */
+    satHasUniqueSolution(clues) {
+      const totalUserVars = this.BOARD_HEIGHT * this.BOARD_WIDTH * this.BOARD_COLORS;
+      const varCache = new VarCache(totalUserVars);
+      const clauses = [];
+      for (const cell of this.cells) {
+        if (!cell.included) continue;
+        const vars = [];
+        for (let k = 0; k < this.BOARD_COLORS; k++) {
+          vars.push(this.varId(cell.row, cell.col, k));
+        }
+        clauses.push(...exactlyOne(vars));
+      }
+      for (const clue of clues) {
+        const clueCell = this.getCell(clue.row, clue.col);
+        const neighborVars = clueCell.neighbors.filter((neighbor) => neighbor.included).map((neighbor) => this.varId(neighbor.row, neighbor.col, clue.color));
+        if (clue.count === 0) {
+          for (const v of neighborVars) {
+            clauses.push([-v]);
+          }
+        } else {
+          clauses.push(...exactlyK(neighborVars, clue.count, varCache));
+        }
+      }
+      const totalVars = varCache.last;
+      if (!satSolve(totalVars, clauses)) return false;
+      const blockingClause = [];
+      for (const cell of this.cells) {
+        if (!cell.included || cell.solutionColor === null) continue;
+        blockingClause.push(-this.varId(cell.row, cell.col, cell.solutionColor));
+      }
+      clauses.push(blockingClause);
+      return !satSolve(totalVars, clauses);
     }
     drawBackground() {
       this.ctx.fillStyle = "#808080";
@@ -258,22 +365,32 @@
       this.ctx.font = `bold ${fontSize}px "Roboto Mono", monospace`;
       this.ctx.textAlign = "center";
       this.ctx.textBaseline = "middle";
-      this.clues.forEach((clue) => {
-        if (clue.color === null) return;
+      const cluesByCell = /* @__PURE__ */ new Map();
+      for (const clue of this.clues) {
+        if (clue.color === null) continue;
+        const key = `${clue.row},${clue.col}`;
+        if (!cluesByCell.has(key)) cluesByCell.set(key, []);
+        cluesByCell.get(key).push(clue);
+      }
+      for (const [cellKey, cellClues] of cluesByCell) {
+        const clue = cellClues[0];
         const clueCell = this.getCell(clue.row, clue.col);
-        let positiveGuessCount = 0;
-        let negativeGuessCount = 0;
-        let totalSpaces = 0;
-        for (const neighbor of clueCell.neighbors) {
-          totalSpaces += 1;
-          if (neighbor.color === clue.color) {
-            positiveGuessCount += 1;
+        let anyInvalid = false;
+        for (const c of cellClues) {
+          let positiveGuessCount = 0;
+          let negativeGuessCount = 0;
+          let totalSpaces = 0;
+          for (const neighbor of clueCell.neighbors) {
+            totalSpaces += 1;
+            if (neighbor.color === c.color) positiveGuessCount += 1;
+            if (neighbor.color !== null && neighbor.color !== c.color) negativeGuessCount += 1;
           }
-          if (neighbor.color !== null && neighbor.color !== clue.color) {
-            negativeGuessCount += 1;
+          if (positiveGuessCount > c.count || totalSpaces - negativeGuessCount < c.count) {
+            anyInvalid = true;
+            break;
           }
         }
-        if (positiveGuessCount > clue.count || totalSpaces - negativeGuessCount < clue.count) {
+        if (anyInvalid) {
           this.ctx.strokeStyle = "#ff0000";
           this.ctx.lineWidth = 3;
           const x1 = clue.col * squareWidth;
@@ -288,12 +405,51 @@
           this.ctx.stroke();
         }
         this.ctx.font = `bold ${fontSize + 2}px "Roboto Mono", monospace`;
-        this.ctx.fillStyle = this.PALETTE[clue.color];
-        this.ctx.fillText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);
-        this.ctx.strokeStyle = "#000000";
-        this.ctx.lineWidth = 1;
-        this.ctx.strokeText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);
-      });
+        const cx = (clue.col + 0.5) * squareWidth;
+        const cy = (clue.row + 0.5) * squareHeight;
+        if (cellClues.length === 1) {
+          this.ctx.fillStyle = this.PALETTE[clue.color];
+          this.ctx.fillText(clue.count.toString(), cx, cy);
+          this.ctx.strokeStyle = "#000000";
+          this.ctx.lineWidth = 1;
+          this.ctx.strokeText(clue.count.toString(), cx, cy);
+        } else {
+          const parts = [];
+          for (let i = 0; i < cellClues.length; i++) {
+            if (i > 0) parts.push({ text: ",", color: null });
+            parts.push({ text: cellClues[i].count.toString(), color: this.PALETTE[cellClues[i].color] });
+          }
+          const baseFontSize = fontSize + 2;
+          this.ctx.font = `bold ${baseFontSize}px "Roboto Mono", monospace`;
+          const maxWidth = squareWidth - 6;
+          let totalWidth = parts.reduce(
+            (acc, p) => acc + this.ctx.measureText(p.text).width,
+            0
+          );
+          const drawFontSize = totalWidth > maxWidth ? Math.max(8, Math.floor(baseFontSize * maxWidth / totalWidth)) : baseFontSize;
+          this.ctx.font = `bold ${drawFontSize}px "Roboto Mono", monospace`;
+          totalWidth = parts.reduce(
+            (acc, p) => acc + this.ctx.measureText(p.text).width,
+            0
+          );
+          let x = cx - totalWidth / 2;
+          for (const part of parts) {
+            const partWidth = this.ctx.measureText(part.text).width;
+            const px = x + partWidth / 2;
+            if (part.color !== null) {
+              this.ctx.fillStyle = part.color;
+              this.ctx.fillText(part.text, px, cy);
+              this.ctx.strokeStyle = "#000000";
+              this.ctx.lineWidth = 1;
+              this.ctx.strokeText(part.text, px, cy);
+            } else {
+              this.ctx.fillStyle = "#000000";
+              this.ctx.fillText(part.text, px, cy);
+            }
+            x += partWidth;
+          }
+        }
+      }
       if (this.puzzleComplete) {
         this.ctx.font = `bold 96px "Roboto Mono", monospace`;
         this.ctx.fillStyle = "#ffffff";

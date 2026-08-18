@@ -13,13 +13,15 @@
 // TODO: Puzzle Generation Options and Descriptions
 // TODO: Hint System?
 // TODO: Project Writeup
-
-// for every pair of cells with intersecting neighbourhoods and
-//  with at least one empty cell in the non-intersecting region and
-//  at least one cell has no clue
-    // for every possible clue pair
-        // probability of being picked is (I c X) / 2^(total neighbourhood)
-        // I and T only count empty cells, X is the modified clue not the actual clue
+// SAT solver globals (loaded from ../SATjs-master/SAT.js and helpers.js)
+declare function satSolve(size: number, clauses: number[][]): boolean;
+declare function exactlyOne(vars: number[]): number[][];
+declare function exactlyK(vars: number[], k: number, varCache: VarCache): number[][];
+declare class VarCache {
+    last: number;
+    constructor(max: number);
+    getVar(): number;
+}
 
 class NMosaicCell {
     row: number;
@@ -145,7 +147,7 @@ class NMosaic {
                     }
                     return false;
                 })
-                
+
                 if (newClueCell) {
                     const randomColor = Math.floor(Math.random() * this.BOARD_COLORS);
 
@@ -183,6 +185,86 @@ class NMosaic {
                 this.clues.push(clue);
             }
 
+        } else if (this.BOARD_DIFFICULTY === "sat") {
+            // I think sometimes the random board isn't uniquely solvable
+            const maxAttempts = 10;
+            let allClues: NMosaicClue[] = [];
+            let attempts = 0;
+            do {
+                for (const cell of this.cells) {
+                    if (!cell.included) continue;
+                    cell.solutionColor = Math.floor(Math.random() * this.BOARD_COLORS);
+                }
+
+                allClues = [];
+                for (const cell of this.cells) {
+                    if (!cell.included) continue;
+                    for (let k = 0; k < this.BOARD_COLORS; k++) {
+                        const count = cell.neighbors.filter((neighbor) => neighbor.solutionColor === k).length;
+                        allClues.push(new NMosaicClue(cell.row, cell.col, k, count));
+                    }
+                }
+
+                attempts++;
+            } while (!this.satHasUniqueSolution(allClues) && attempts < maxAttempts);
+
+            if (attempts >= maxAttempts) {
+                console.warn(
+                    "SAT difficulty: no unique solution after", maxAttempts,
+                    "attempts. Try more colors or a larger board."
+                );
+            }
+
+            // 2. Phase 1: Remove clues from cells with multiple clues,
+            //    reducing to at most one clue per cell.
+            const retainedClues = allClues.slice();
+            const cluesPerCell = new Map<string, number>();
+            for (const clue of allClues) {
+                const key = `${clue.row},${clue.col}`;
+                cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) + 1);
+            }
+
+            const shuffledPhase1 = allClues.slice().sort(() => Math.random() - 0.5);
+            for (const clue of shuffledPhase1) {
+                const key = `${clue.row},${clue.col}`;
+                if ((cluesPerCell.get(key) ?? 0) <= 1) continue;
+
+                const index = retainedClues.indexOf(clue);
+                if (index === -1) continue;
+                retainedClues.splice(index, 1);
+
+                if (this.satHasUniqueSolution(retainedClues)) {
+                    cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
+                } else {
+                    retainedClues.splice(index, 0, clue);
+                }
+            }
+
+            // 4. Phase 2: Try to remove remaining clues (cells with exactly
+            //    one clue) until no more can be removed without losing
+            //    unique solvability.  Some cells may end up with 0 clues.
+            let progress = true;
+            while (progress) {
+                progress = false;
+                const shuffledPhase2 = retainedClues.slice().sort(() => Math.random() - 0.5);
+                for (const clue of shuffledPhase2) {
+                    const key = `${clue.row},${clue.col}`;
+                    if ((cluesPerCell.get(key) ?? 0) === 0) continue;
+
+                    const index = retainedClues.indexOf(clue);
+                    if (index === -1) continue;
+                    retainedClues.splice(index, 1);
+
+                    if (this.satHasUniqueSolution(retainedClues)) {
+                        cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
+                        progress = true;
+                    } else {
+                        retainedClues.splice(index, 0, clue);
+                    }
+                }
+            }
+
+            this.clues = retainedClues;
             console.log(this.clues);
         } else {
             console.log("Unrecognized Difficulty Option");
@@ -238,6 +320,65 @@ class NMosaic {
     getCell(row: number, col: number): NMosaicCell | null {
         if (row < 0 || row >= this.BOARD_HEIGHT || col < 0 || col >= this.BOARD_WIDTH) return null;
         return this.cells[row * this.BOARD_WIDTH + col];
+    }
+
+    // ─── SAT encoding & solving ─────────────────────────────────────────
+
+    /** Maps (row, col, color) to a 1-based SAT variable id. */
+    private varId(row: number, col: number, color: number): number {
+        return row * this.BOARD_WIDTH * this.BOARD_COLORS + col * this.BOARD_COLORS + color + 1;
+    }
+
+    /**
+     * Encodes the puzzle (each included cell has exactly one color; every
+     * clue counts the correct number of same-coloured neighbours) as CNF and
+     * checks that the intended solution is the unique satisfying assignment.
+     */
+    satHasUniqueSolution(clues: NMosaicClue[]): boolean {
+        const totalUserVars = this.BOARD_HEIGHT * this.BOARD_WIDTH * this.BOARD_COLORS;
+        const varCache = new VarCache(totalUserVars);
+        const clauses: number[][] = [];
+
+        // Each included cell must have exactly one color.
+        for (const cell of this.cells) {
+            if (!cell.included) continue;
+            const vars: number[] = [];
+            for (let k = 0; k < this.BOARD_COLORS; k++) {
+                vars.push(this.varId(cell.row, cell.col, k));
+            }
+            clauses.push(...exactlyOne(vars));
+        }
+
+        // Clue: exactly `count` of the clue cell's neighbours are colour `color`.
+        for (const clue of clues) {
+            const clueCell = this.getCell(clue.row, clue.col)!!;
+            const neighborVars = clueCell.neighbors
+                .filter((neighbor) => neighbor.included)
+                .map((neighbor) => this.varId(neighbor.row, neighbor.col, clue.color));
+
+            if (clue.count === 0) {
+                // exactlyK() does not handle k = 0; force every literal false.
+                for (const v of neighborVars) {
+                    clauses.push([-v]);
+                }
+            } else {
+                clauses.push(...exactlyK(neighborVars, clue.count, varCache));
+            }
+        }
+
+        // The intended solution must satisfy the puzzle.
+        const totalVars = varCache.last;
+        if (!satSolve(totalVars, clauses)) return false;
+
+        // Negate the intended solution; UNSAT means it is the unique one.
+        const blockingClause: number[] = [];
+        for (const cell of this.cells) {
+            if (!cell.included || cell.solutionColor === null) continue;
+            blockingClause.push(-this.varId(cell.row, cell.col, cell.solutionColor));
+        }
+        clauses.push(blockingClause);
+
+        return !satSolve(totalVars, clauses);
     }
 
     drawBackground() {
@@ -324,23 +465,38 @@ class NMosaic {
         this.ctx.font = `bold ${fontSize}px "Roboto Mono", monospace`;
         this.ctx.textAlign = "center";
         this.ctx.textBaseline = "middle";
-        this.clues.forEach((clue) => {
-            if (clue.color === null) return;
+
+        // Group clues by cell so we can render multi-clue cells properly.
+        const cluesByCell = new Map<string, NMosaicClue[]>();
+        for (const clue of this.clues) {
+            if (clue.color === null) continue;
+            const key = `${clue.row},${clue.col}`;
+            if (!cluesByCell.has(key)) cluesByCell.set(key, []);
+            cluesByCell.get(key)!!.push(clue);
+        }
+
+        for (const [cellKey, cellClues] of cluesByCell) {
+            const clue = cellClues[0];
             const clueCell = this.getCell(clue.row, clue.col)!!;
-            let positiveGuessCount = 0;
-            let negativeGuessCount = 0;
-            let totalSpaces = 0;
-            for (const neighbor of clueCell.neighbors) {
-                totalSpaces += 1;
-                if (neighbor.color === clue.color) {
-                    positiveGuessCount += 1;
+
+            // Validate every clue on this cell; draw a red X if any is wrong.
+            let anyInvalid = false;
+            for (const c of cellClues) {
+                let positiveGuessCount = 0;
+                let negativeGuessCount = 0;
+                let totalSpaces = 0;
+                for (const neighbor of clueCell.neighbors) {
+                    totalSpaces += 1;
+                    if (neighbor.color === c.color) positiveGuessCount += 1;
+                    if (neighbor.color !== null && neighbor.color !== c.color) negativeGuessCount += 1;
                 }
-                if (neighbor.color !== null && neighbor.color !== clue.color) {
-                    negativeGuessCount += 1;
+                if (positiveGuessCount > c.count || (totalSpaces - negativeGuessCount) < c.count) {
+                    anyInvalid = true;
+                    break;
                 }
             }
 
-            if (positiveGuessCount > clue.count || (totalSpaces - negativeGuessCount) < clue.count) {
+            if (anyInvalid) {
                 this.ctx.strokeStyle = "#ff0000";
                 this.ctx.lineWidth = 3;
                 const x1 = clue.col * squareWidth;
@@ -356,12 +512,60 @@ class NMosaic {
             }
 
             this.ctx.font = `bold ${fontSize + 2}px "Roboto Mono", monospace`;
-            this.ctx.fillStyle = this.PALETTE[clue.color];
-            this.ctx.fillText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);
-            this.ctx.strokeStyle = "#000000"; //clueCell.color === 0 ? "#ffffff" : "#000000";
-            this.ctx.lineWidth = 1;
-            this.ctx.strokeText(clue.count.toString(), (clue.col + 0.5) * squareWidth, (clue.row + 0.5) * squareHeight);
-        })
+            const cx = (clue.col + 0.5) * squareWidth;
+            const cy = (clue.row + 0.5) * squareHeight;
+
+            if (cellClues.length === 1) {
+                // Single clue — draw as before.
+                this.ctx.fillStyle = this.PALETTE[clue.color];
+                this.ctx.fillText(clue.count.toString(), cx, cy);
+                this.ctx.strokeStyle = "#000000";
+                this.ctx.lineWidth = 1;
+                this.ctx.strokeText(clue.count.toString(), cx, cy);
+            } else {
+                // Multiple clues — comma-separated, each number in its clue
+                // color.  Shrink the font if the text won't fit the cell.
+                const parts: { text: string; color: string | null }[] = [];
+                for (let i = 0; i < cellClues.length; i++) {
+                    if (i > 0) parts.push({ text: ",", color: null });
+                    parts.push({ text: cellClues[i].count.toString(), color: this.PALETTE[cellClues[i].color] });
+                }
+
+                const baseFontSize = fontSize + 2;
+                this.ctx.font = `bold ${baseFontSize}px "Roboto Mono", monospace`;
+                const maxWidth = squareWidth - 6;
+                let totalWidth = parts.reduce(
+                    (acc, p) => acc + this.ctx.measureText(p.text).width,
+                    0
+                );
+                const drawFontSize = totalWidth > maxWidth
+                    ? Math.max(8, Math.floor(baseFontSize * maxWidth / totalWidth))
+                    : baseFontSize;
+                this.ctx.font = `bold ${drawFontSize}px "Roboto Mono", monospace`;
+
+                totalWidth = parts.reduce(
+                    (acc, p) => acc + this.ctx.measureText(p.text).width,
+                    0
+                );
+                let x = cx - totalWidth / 2;
+
+                for (const part of parts) {
+                    const partWidth = this.ctx.measureText(part.text).width;
+                    const px = x + partWidth / 2;
+                    if (part.color !== null) {
+                        this.ctx.fillStyle = part.color;
+                        this.ctx.fillText(part.text, px, cy);
+                        this.ctx.strokeStyle = "#000000";
+                        this.ctx.lineWidth = 1;
+                        this.ctx.strokeText(part.text, px, cy);
+                    } else {
+                        this.ctx.fillStyle = "#000000";
+                        this.ctx.fillText(part.text, px, cy);
+                    }
+                    x += partWidth;
+                }
+            }
+        }
 
         if (this.puzzleComplete) {
             this.ctx.font = `bold 96px "Roboto Mono", monospace`;
