@@ -1,5 +1,14 @@
 {
     "posts": [
+    {
+      "title": "Loosely typed languages considered harmful",
+      "year": 2026,
+      "month": 8,
+      "day": 20,
+      "subtitle": null,
+      "encrypted": false,
+      "content": "<p>My last post was about the new difficulty settings I wanted to add to N-Mosaic. As of this post I've finished those two things, but I've run into some issues. One of the goals of this website is for it to be purely vanilla web development, nothing but html, javascript, css, and assets. I like the idea of making everything from scratch, like our forefathers did. The n-mosaic project is starting to push the boundaries of what I can tolerate in that regard. I already moved the main n-mosaic logic to typescript because it's complex enough that I need it. That was mostly fine because I can just transpile it to javascript before committing my changes, but now I want to also convert the SAT Solver to TypeScript because I need to make some updates. The SAT Solver I'm using was made by Dr. Gregory Duck with javascript in order to make it easy to use, but it was also made to be pretty simple and lightweight. The main reason I used it over the various other options is because part of my goal to make things from scratch is to not use a package manager. I want all the code on my website to be accessible to anyone who wants it.</p><p>In order to understand this next part you'll need to know how a CDCL SAT Solver works, which I learned from <a href=\"https://users.aalto.fi/~tjunttil/2020-DP-AUT/notes-sat/cdcl.html\">here</a>. SAT.js (Dr. Gregory Duck's javascript SAT Solver) picks the next decision literal randomly, but I want to be able to use it to get a measure of the difficulty of various n-mosaic puzzles, so it needs a deterministic way to make those decisions. The best strategy for this is called VSIDS (Variable State Independent Decaying Sum) where each variable is scored based on how frequently it is involved in conflicts and the scores go down over time to prioritize recent conflicts. The problem I'm running into is that if I convert it to typescript the way I did for the n-mosaic game logic the algorithm won't be accessible in other files, but the way to get around this is a bit complicated and messy. I think what I'm going to do is just use javascript and put lots of comments explaining the type of things.</p>"
+    },
 		{
 			"title": "N-Mosaic SAT Difficulty",
 			"year": 2026,

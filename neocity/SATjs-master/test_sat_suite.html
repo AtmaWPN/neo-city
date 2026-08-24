@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SAT Suite Tests</title>
+    <link href="../style.css" rel="stylesheet" type="text/css" media="all">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+    <style>
+      body { padding: 2rem; max-width: 800px; margin: 0 auto; }
+      #test-suite-status { font-size: 1.5rem; margin-bottom: 1rem; }
+      button { font-family: "Roboto Mono", monospace; font-size: 1rem; padding: 0.5rem 1rem; cursor: pointer; margin-bottom: 1rem; }
+      .note { color: #6e7681; font-size: 0.9rem; margin-top: 2rem; }
+    </style>
+  </head>
+  <body class="page">
+    <h1>SAT Solver — Test Suite</h1>
+    <p id="test-suite-status">Ready</p>
+    <button onclick="runSATSuite()">Run Tests</button>
+    <p class="note">
+      Tests the core SAT solver (<code>satSolve</code>), the helper encodings
+      (<code>exactlyOne</code>, <code>atMostK</code>, <code>exactlyK</code>,
+      <code>VarCache</code>), and an n-mosaic-style integration test.
+    </p>
+    <script src="test_sat_suite.js" type="module"></script>
+    <script src="helpers.js"></script>
+    <script src="SAT.js"></script>
+  </body>
+</html>

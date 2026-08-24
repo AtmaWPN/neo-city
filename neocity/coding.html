@@ -12,9 +12,9 @@
   <body class="page">
     <div id="content">
         <h2>Coding projects small enough to run in the browser</h2><br>
-        <iframe class="project-iframe" src="coding/n_mosaic.html" title="N-Mosaic"></iframe><br>
-        <iframe class="project-iframe" src="coding/8vim_controller.html" title="8Vim Demo"></iframe><br>
-        <iframe class="project-iframe" src="coding/encryptor.html" title="Cipher"></iframe><br>
+        <iframe class="project-iframe" src="coding/n_mosaic.html" title="N-Mosaic"></iframe>
+        <iframe class="project-iframe" src="coding/8vim_controller.html" title="8Vim Demo"></iframe>
+        <iframe class="project-iframe" src="coding/encryptor.html" title="Cipher"></iframe>
     </div>
     <script src="helpers/style_processor.js"></script>
     <script src="helpers/line_numbers.js"></script>
@@ -39,7 +39,7 @@
       function resizeIframe(iframe) {
         try {
           var doc = iframe.contentDocument || iframe.contentWindow.document;
-          var lineH = 24;
+          var lineH = getLineHeight(doc.body);
 
           // Find existing spacer
           var spacer = doc.querySelector('.iframe-spacer');
