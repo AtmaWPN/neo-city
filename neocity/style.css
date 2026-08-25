@@ -19,6 +19,11 @@
 }
 
 /* Element-Level */
+html, body {
+  margin: 0;
+  padding: 0;
+}
+
 body {
   background-color: var(--background);
   background-attachment: fixed;
@@ -73,7 +78,7 @@ ol {
   margin: 0;
   padding-left: 0;
 }
- 
+
 ol > li {
   counter-increment: item;
   padding-left: 1em;
@@ -198,6 +203,15 @@ iframe {
   width: 100%;
   overflow: hidden;
   padding-top: 75%;
+}
+
+.project-iframe {
+  position: static;
+  display: block;
+  width: 100%;
+  height: 600px; /* fallback before JS resize runs */
+  border: none;
+  overflow: hidden;
 }
 
 /* ID-Level */

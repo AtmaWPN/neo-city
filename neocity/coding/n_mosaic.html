@@ -13,6 +13,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
   </head>
   <body class="page">
+    <h3>N-Mosaic</h3>
+
+    <p>I was inspired by the game <a href="https://www.proverbsgame.com/">Proverbs</a> to make my own variant of the classic Mosaic puzzle.</p>
+    <p>In N-Mosaic, clues have an associated color that indicates the number of cells in it's neighbourhood that are that color.</p>
+    <p>Left-Click to color a cell, Right-Click to clear a cell, Scroll Wheel to change the currently selected color.</p>
+
     <div id="n_mosaic_controls">
       <label for="n_mosaic_width">Width:</label>
       <input type="number" id="n_mosaic_width" value="10" min="2" max="32">
@@ -25,7 +31,9 @@
       <label for="n_mosaic_difficulty">Difficulty:</label>
       <select id="n_mosaic_difficulty">
         <option value="easy">easy</option>
+        <option value="medium">medium</option>
         <option value="random">random</option>
+        <option value="sat">sat</option>
       </select>
     </div>
     <div id="n_mosaic_game" style="display: flex; gap: 4px;">
@@ -36,6 +44,8 @@
       <button id="n_mosaic_regenerate" class="function">Regenerate()</button>
       <button id="n_mosaic_reveal_solution" class="function">ShowSolution()</button>
     </div>
+    <script src="../SATjs-master/SAT.js"></script>
+    <script src="../SATjs-master/helpers.js"></script>
     <script src="n_mosaic.js"></script>
   </body>
 </html>
