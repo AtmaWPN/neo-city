@@ -6,6 +6,7 @@
     solutionColor;
     neighbors;
     included;
+    pencilMarks;
     constructor(row, col) {
       this.row = row;
       this.col = col;
@@ -13,6 +14,7 @@
       this.solutionColor = null;
       this.neighbors = [];
       this.included = false;
+      this.pencilMarks = /* @__PURE__ */ new Set();
     }
   }
   class NMosaicClue {
@@ -64,6 +66,7 @@
     showSolution = false;
     puzzleComplete = false;
     selectedColor = 0;
+    pencilMode = false;
     constructor(height = 9, width = 9, colors = 2, fraction = 1, difficulty = "random", canvas, paletteCanvas) {
       this.ctx = canvas.getContext("2d");
       this.paletteCtx = paletteCanvas.getContext("2d");
@@ -78,7 +81,13 @@
       this.BOARD_DIFFICULTY = difficulty;
       this.cells = [];
       this.clues = [];
-      this.regenerate(this.BOARD_HEIGHT, this.BOARD_WIDTH, this.BOARD_COLORS, this.BOARD_FRACTION, this.BOARD_DIFFICULTY);
+      this.regenerate(
+        this.BOARD_HEIGHT,
+        this.BOARD_WIDTH,
+        this.BOARD_COLORS,
+        this.BOARD_FRACTION,
+        this.BOARD_DIFFICULTY
+      );
     }
     regenerate(height = 9, width = 9, colors = 2, fraction = 0.5, difficulty = "random") {
       this.BOARD_HEIGHT = height;
@@ -87,6 +96,7 @@
       this.BOARD_FRACTION = fraction;
       this.BOARD_DIFFICULTY = difficulty;
       this.selectedColor = 0;
+      this.pencilMode = false;
       this.cells = [];
       this.clues = [];
       this.puzzleComplete = false;
@@ -116,8 +126,11 @@
       const recipes = [];
       for (const cell of this.cells) {
         if (!cell.included) continue;
-        if (this.clues.some((c) => c.row === cell.row && c.col === cell.col)) continue;
-        const emptyNeighbors = cell.neighbors.filter((n) => n.solutionColor === null);
+        if (this.clues.some((c) => c.row === cell.row && c.col === cell.col))
+          continue;
+        const emptyNeighbors = cell.neighbors.filter(
+          (n) => n.solutionColor === null
+        );
         if (emptyNeighbors.length === 0) continue;
         for (let color = 0; color < this.BOARD_COLORS; color++) {
           const weight = 100 / Math.pow(this.BOARD_COLORS, emptyNeighbors.length);
@@ -133,7 +146,9 @@
     }
     getTotalNeighbourhoodSumRecipes() {
       const recipes = [];
-      const unclued = this.cells.filter((c) => c.included && !this.clues.some((cl) => cl.row === c.row && cl.col === c.col));
+      const unclued = this.cells.filter(
+        (c) => c.included && !this.clues.some((cl) => cl.row === c.row && cl.col === c.col)
+      );
       for (let i = 0; i < unclued.length; i++) {
         for (let j = i + 1; j < unclued.length; j++) {
           const A = unclued[i], B = unclued[j];
@@ -152,9 +167,18 @@
           for (let cA = 0; cA < this.BOARD_COLORS; cA++) {
             for (let cB = 0; cB < this.BOARD_COLORS; cB++) {
               if (cA === cB) continue;
-              if (excA.some((n) => n.solutionColor !== null && n.solutionColor !== cA)) continue;
-              if (excB.some((n) => n.solutionColor !== null && n.solutionColor !== cB)) continue;
-              if (inter.some((n) => n.solutionColor !== null && n.solutionColor !== cA && n.solutionColor !== cB)) continue;
+              if (excA.some(
+                (n) => n.solutionColor !== null && n.solutionColor !== cA
+              ))
+                continue;
+              if (excB.some(
+                (n) => n.solutionColor !== null && n.solutionColor !== cB
+              ))
+                continue;
+              if (inter.some(
+                (n) => n.solutionColor !== null && n.solutionColor !== cA && n.solutionColor !== cB
+              ))
+                continue;
               const preCAinA = nA.filter((n) => n.solutionColor === cA).length;
               const preCBinB = nB.filter((n) => n.solutionColor === cB).length;
               for (let X = 0; X <= emptyI; X++) {
@@ -179,7 +203,9 @@
     }
     getExcludedDifferenceRecipes() {
       const recipes = [];
-      const unclued = this.cells.filter((c) => c.included && !this.clues.some((cl) => cl.row === c.row && cl.col === c.col));
+      const unclued = this.cells.filter(
+        (c) => c.included && !this.clues.some((cl) => cl.row === c.row && cl.col === c.col)
+      );
       for (let i = 0; i < unclued.length; i++) {
         for (let j = i + 1; j < unclued.length; j++) {
           const A = unclued[i], B = unclued[j];
@@ -198,9 +224,18 @@
           for (let c = 0; c < this.BOARD_COLORS; c++) {
             for (let d = 0; d < this.BOARD_COLORS; d++) {
               if (c === d) continue;
-              if (excA.some((n) => n.solutionColor !== null && n.solutionColor !== d)) continue;
-              if (excB.some((n) => n.solutionColor !== null && n.solutionColor !== c)) continue;
-              if (inter.some((n) => n.solutionColor !== null && n.solutionColor !== c && n.solutionColor !== d)) continue;
+              if (excA.some(
+                (n) => n.solutionColor !== null && n.solutionColor !== d
+              ))
+                continue;
+              if (excB.some(
+                (n) => n.solutionColor !== null && n.solutionColor !== c
+              ))
+                continue;
+              if (inter.some(
+                (n) => n.solutionColor !== null && n.solutionColor !== c && n.solutionColor !== d
+              ))
+                continue;
               const preCAinA = nA.filter((n) => n.solutionColor === c).length;
               const preCBinB = nB.filter((n) => n.solutionColor === c).length;
               for (let X = 0; X <= emptyI; X++) {
@@ -223,7 +258,7 @@
       }
       return recipes;
     }
-    generateRecipePuzzle() {
+    async generateRecipePuzzle() {
       const recipeGenerators = [];
       if (this.BOARD_DIFFICULTY === "easy") {
         recipeGenerators.push(() => this.getSimpleRemainderRecipes());
@@ -244,12 +279,14 @@
           for (const cell of this.cells) {
             if (!cell.included) continue;
             for (let k = 0; k < this.BOARD_COLORS; k++) {
-              const count = cell.neighbors.filter((neighbor) => neighbor.solutionColor === k).length;
+              const count = cell.neighbors.filter(
+                (neighbor) => neighbor.solutionColor === k
+              ).length;
               allClues.push(new NMosaicClue(cell.row, cell.col, k, count));
             }
           }
           attempts++;
-        } while (!this.satHasUniqueSolution(allClues) && attempts < maxAttempts);
+        } while (!await this.satHasUniqueSolution(allClues) && attempts < maxAttempts);
         if (attempts >= maxAttempts) {
           console.warn(
             "SAT difficulty: no unique solution after",
@@ -270,7 +307,7 @@
           const index = retainedClues.indexOf(clue);
           if (index === -1) continue;
           retainedClues.splice(index, 1);
-          if (this.satHasUniqueSolution(retainedClues)) {
+          if (await this.satHasUniqueSolution(retainedClues)) {
             cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
           } else {
             retainedClues.splice(index, 0, clue);
@@ -286,7 +323,7 @@
             const index = retainedClues.indexOf(clue);
             if (index === -1) continue;
             retainedClues.splice(index, 1);
-            if (this.satHasUniqueSolution(retainedClues)) {
+            if (await this.satHasUniqueSolution(retainedClues)) {
               cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
               progress = true;
             } else {
@@ -295,7 +332,6 @@
           }
         }
         this.clues = retainedClues;
-        console.log(this.clues);
         return;
       } else {
         console.log("Unrecognized Difficulty Option");
@@ -328,7 +364,7 @@
             savedColors.set(item.cell, item.cell.solutionColor);
           }
           this.applyRecipe(recipe);
-          if (this.satIsConsistent(this.clues)) {
+          if (await this.satIsConsistent(this.clues)) {
             applied = true;
             break;
           }
@@ -347,23 +383,36 @@
       }
       for (const cell of this.cells) {
         if (!cell.included) continue;
-        let bestClueColor = 0;
-        let bestClueCount = cell.neighbors.filter((it) => it.solutionColor === 0).length;
+        let worstClueColor = 0;
+        let worstClueCount = cell.neighbors.filter(
+          (it) => it.solutionColor === 0
+        ).length;
         for (let i = 1; i < this.BOARD_COLORS; i++) {
-          let nextClueCount = cell.neighbors.filter((it) => it.solutionColor === i).length;
-          if (nextClueCount > bestClueCount) {
-            bestClueColor = i;
-            bestClueCount = nextClueCount;
+          let nextClueCount = cell.neighbors.filter(
+            (it) => it.solutionColor === i
+          ).length;
+          if (nextClueCount < worstClueCount) {
+            worstClueColor = i;
+            worstClueCount = nextClueCount;
           }
         }
-        const clue = new NMosaicClue(cell.row, cell.col, bestClueColor, bestClueCount);
-        this.clues.push(clue);
+        for (let c = 0; c < this.BOARD_COLORS; c++) {
+          if (c === worstClueColor) continue;
+          let clueCount = cell.neighbors.filter(
+            (it) => it.solutionColor === c
+          ).length;
+          const clue = new NMosaicClue(cell.row, cell.col, c, clueCount);
+          this.clues.push(clue);
+        }
       }
       console.log(this.clues);
     }
     generateBoardShape() {
       const totalCells = this.BOARD_HEIGHT * this.BOARD_WIDTH;
-      const targetCount = Math.max(1, Math.round(this.BOARD_FRACTION * totalCells));
+      const targetCount = Math.max(
+        1,
+        Math.round(this.BOARD_FRACTION * totalCells)
+      );
       const startRow = Math.floor(this.BOARD_HEIGHT / 2);
       const startCol = Math.floor(this.BOARD_WIDTH / 2);
       const startCell = this.getCell(startRow, startCol);
@@ -402,7 +451,8 @@
       }
     }
     getCell(row, col) {
-      if (row < 0 || row >= this.BOARD_HEIGHT || col < 0 || col >= this.BOARD_WIDTH) return null;
+      if (row < 0 || row >= this.BOARD_HEIGHT || col < 0 || col >= this.BOARD_WIDTH)
+        return null;
       return this.cells[row * this.BOARD_WIDTH + col];
     }
     /**
@@ -410,7 +460,7 @@
      * are consistent (i.e. there exists at least one full assignment of all
      * cells that satisfies every clue and respects every already-colored cell).
      */
-    satIsConsistent(clues) {
+    async satIsConsistent(clues) {
       const totalUserVars = this.BOARD_HEIGHT * this.BOARD_WIDTH * this.BOARD_COLORS;
       const varCache = new VarCache(totalUserVars);
       const clauses = [];
@@ -436,7 +486,9 @@
         clauses.push([this.varId(cell.row, cell.col, cell.solutionColor)]);
       }
       const totalVars = varCache.last;
-      return satSolve(totalVars, clauses);
+      const result = await satSolveAsync(totalVars, clauses);
+      console.log(result);
+      return result.SAT;
     }
     // ─── SAT encoding & solving ─────────────────────────────────────────
     /** Maps (row, col, color) to a 1-based SAT variable id. */
@@ -448,7 +500,7 @@
      * clue counts the correct number of same-coloured neighbours) as CNF and
      * checks that the intended solution is the unique satisfying assignment.
      */
-    satHasUniqueSolution(clues) {
+    async satHasUniqueSolution(clues) {
       const totalUserVars = this.BOARD_HEIGHT * this.BOARD_WIDTH * this.BOARD_COLORS;
       const varCache = new VarCache(totalUserVars);
       const clauses = [];
@@ -472,14 +524,18 @@
         }
       }
       const totalVars = varCache.last;
-      if (!satSolve(totalVars, clauses)) return false;
+      const validSolution = await satSolveAsync(totalVars, clauses);
+      console.log(validSolution);
+      if (!validSolution.SAT) return false;
       const blockingClause = [];
       for (const cell of this.cells) {
         if (!cell.included || cell.solutionColor === null) continue;
         blockingClause.push(-this.varId(cell.row, cell.col, cell.solutionColor));
       }
       clauses.push(blockingClause);
-      return !satSolve(totalVars, clauses);
+      const uniqueSolution = await satSolveAsync(totalVars, clauses);
+      console.log(uniqueSolution);
+      return !uniqueSolution.SAT;
     }
     drawBackground() {
       this.ctx.fillStyle = "#808080";
@@ -519,8 +575,58 @@
           this.paletteCtx.strokeStyle = "#ffffff";
           this.paletteCtx.lineWidth = 3;
           this.paletteCtx.strokeRect(x, y, swatchSize, swatchSize);
-        } else {
         }
+      }
+      const buttonSize = 44;
+      const bx = (this.PALETTE_WIDTH - buttonSize) / 2;
+      const by = this.PALETTE_HEIGHT - buttonSize - 15;
+      this.drawPencilButton(bx, by, buttonSize);
+    }
+    drawPencilButton(x, y, size) {
+      const g = this.paletteCtx;
+      g.fillStyle = "#606060";
+      g.fillRect(x, y, size, size);
+      g.strokeStyle = "#000000";
+      g.lineWidth = 2;
+      g.strokeRect(x, y, size, size);
+      const cx = x + size / 2;
+      const cy = y + size / 2;
+      const s = size * 0.5;
+      const half = s * 0.28;
+      const tipLen = s * 0.42;
+      const bodyLen = s * 0.58;
+      const tip = -s / 2;
+      g.save();
+      g.translate(cx, cy);
+      g.rotate(-Math.PI / 4);
+      g.lineWidth = 1.5;
+      g.fillStyle = "#f2d8a7";
+      g.beginPath();
+      g.moveTo(0, tip);
+      g.lineTo(-half, tip + tipLen);
+      g.lineTo(half, tip + tipLen);
+      g.closePath();
+      g.fill();
+      g.stroke();
+      g.fillStyle = "#333333";
+      g.beginPath();
+      g.moveTo(0, tip);
+      g.lineTo(-half * 0.55, tip + tipLen * 0.5);
+      g.lineTo(half * 0.55, tip + tipLen * 0.5);
+      g.closePath();
+      g.fill();
+      g.stroke();
+      g.fillStyle = this.PALETTE[this.selectedColor];
+      g.fillRect(-half, tip + tipLen, 2 * half, bodyLen);
+      g.strokeRect(-half, tip + tipLen, 2 * half, bodyLen);
+      g.fillStyle = "#c8a4c8";
+      g.fillRect(-half, tip + tipLen + bodyLen - 2, 2 * half, s * 0.1);
+      g.strokeRect(-half, tip + tipLen + bodyLen - 2, 2 * half, s * 0.1);
+      g.restore();
+      if (this.pencilMode) {
+        g.strokeStyle = "#ffffff";
+        g.lineWidth = 3;
+        g.strokeRect(x, y, size, size);
       }
     }
     drawBoard() {
@@ -549,6 +655,27 @@
           );
         }
       }
+      if (!this.showSolution) {
+        const cols = this.BOARD_COLORS <= 4 ? 2 : this.BOARD_COLORS <= 6 ? 3 : 4;
+        const rows = Math.ceil(this.BOARD_COLORS / cols);
+        const subW = squareWidth / cols;
+        const subH = squareHeight / rows;
+        const dotR = Math.max(2, Math.min(subW, subH) * 0.28);
+        for (const cell of this.cells) {
+          if (!cell.included || cell.color !== null || cell.pencilMarks.size === 0)
+            continue;
+          for (const color of cell.pencilMarks) {
+            const colIdx = color % cols;
+            const rowIdx = Math.floor(color / cols);
+            const dx = cell.col * squareWidth + (colIdx + 0.5) * subW;
+            const dy = cell.row * squareHeight + (rowIdx + 0.5) * subH;
+            this.ctx.fillStyle = this.PALETTE[color];
+            this.ctx.beginPath();
+            this.ctx.arc(dx, dy, dotR, 0, 2 * Math.PI);
+            this.ctx.fill();
+          }
+        }
+      }
       this.ctx.font = `bold ${fontSize}px "Roboto Mono", monospace`;
       this.ctx.textAlign = "center";
       this.ctx.textBaseline = "middle";
@@ -570,7 +697,8 @@
           for (const neighbor of clueCell.neighbors) {
             totalSpaces += 1;
             if (neighbor.color === c.color) positiveGuessCount += 1;
-            if (neighbor.color !== null && neighbor.color !== c.color) negativeGuessCount += 1;
+            if (neighbor.color !== null && neighbor.color !== c.color)
+              negativeGuessCount += 1;
           }
           if (positiveGuessCount > c.count || totalSpaces - negativeGuessCount < c.count) {
             anyInvalid = true;
@@ -604,7 +732,10 @@
           const parts = [];
           for (let i = 0; i < cellClues.length; i++) {
             if (i > 0) parts.push({ text: ",", color: null });
-            parts.push({ text: cellClues[i].count.toString(), color: this.PALETTE[cellClues[i].color] });
+            parts.push({
+              text: cellClues[i].count.toString(),
+              color: this.PALETTE[cellClues[i].color]
+            });
           }
           const baseFontSize = fontSize + 2;
           this.ctx.font = `bold ${baseFontSize}px "Roboto Mono", monospace`;
@@ -643,21 +774,52 @@
         this.ctx.fillText("YOU WIN", this.WIDTH / 2, this.HEIGHT / 2, this.WIDTH);
         this.ctx.strokeStyle = "#000000";
         this.ctx.lineWidth = 1;
-        this.ctx.strokeText("YOU WIN", this.WIDTH / 2, this.HEIGHT / 2, this.WIDTH);
+        this.ctx.strokeText(
+          "YOU WIN",
+          this.WIDTH / 2,
+          this.HEIGHT / 2,
+          this.WIDTH
+        );
       }
     }
   }
   function nMosaicMain() {
-    const regenerateButton = document.getElementById("n_mosaic_regenerate");
-    const revealSolutionButton = document.getElementById("n_mosaic_reveal_solution");
-    const heightInput = document.getElementById("n_mosaic_height");
-    const widthInput = document.getElementById("n_mosaic_width");
-    const colorsInput = document.getElementById("n_mosaic_colors");
-    const canvas = document.getElementById("n_mosaic_board");
-    const paletteCanvas = document.getElementById("n_mosaic_palette");
-    const shapeFractionInput = document.getElementById("n_mosaic_shape_fraction");
-    const difficultyInput = document.getElementById("n_mosaic_difficulty");
-    const nMosaic = new NMosaic(parseInt(heightInput.value), parseInt(widthInput.value), parseInt(colorsInput.value), parseFloat(shapeFractionInput.value), difficultyInput.value, canvas, paletteCanvas);
+    const regenerateButton = document.getElementById(
+      "n_mosaic_regenerate"
+    );
+    const revealSolutionButton = document.getElementById(
+      "n_mosaic_reveal_solution"
+    );
+    const heightInput = document.getElementById(
+      "n_mosaic_height"
+    );
+    const widthInput = document.getElementById(
+      "n_mosaic_width"
+    );
+    const colorsInput = document.getElementById(
+      "n_mosaic_colors"
+    );
+    const canvas = document.getElementById(
+      "n_mosaic_board"
+    );
+    const paletteCanvas = document.getElementById(
+      "n_mosaic_palette"
+    );
+    const shapeFractionInput = document.getElementById(
+      "n_mosaic_shape_fraction"
+    );
+    const difficultyInput = document.getElementById(
+      "n_mosaic_difficulty"
+    );
+    const nMosaic = new NMosaic(
+      parseInt(heightInput.value),
+      parseInt(widthInput.value),
+      parseInt(colorsInput.value),
+      parseFloat(shapeFractionInput.value),
+      difficultyInput.value,
+      canvas,
+      paletteCanvas
+    );
     function handlePaletteClick(e) {
       const rect = paletteCanvas.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -665,6 +827,13 @@
       const swatchSize = 44;
       const gap = 10;
       const spacing = swatchSize + gap;
+      const buttonSize = 44;
+      const pencilX = (nMosaic.PALETTE_WIDTH - buttonSize) / 2;
+      const pencilY = nMosaic.PALETTE_HEIGHT - buttonSize - 15;
+      if (x >= pencilX - 5 && x <= pencilX + buttonSize + 5 && y >= pencilY - 5 && y <= pencilY + buttonSize + 5) {
+        nMosaic.pencilMode = !nMosaic.pencilMode;
+        return;
+      }
       const totalHeight = nMosaic.BOARD_COLORS * spacing - gap;
       const startX = (nMosaic.PALETTE_WIDTH - swatchSize) / 2;
       const startY = (nMosaic.PALETTE_HEIGHT - totalHeight) / 2;
@@ -672,7 +841,8 @@
       const relativeY = y - startY;
       const index = Math.floor(relativeY / spacing);
       const offsetInSwatch = relativeY - index * spacing;
-      if (index < 0 || index >= nMosaic.BOARD_COLORS || offsetInSwatch < -5 || offsetInSwatch > swatchSize + 5) return;
+      if (index < 0 || index >= nMosaic.BOARD_COLORS || offsetInSwatch < -5 || offsetInSwatch > swatchSize + 5)
+        return;
       nMosaic.selectedColor = index;
     }
     function changeSelectedColor(direction) {
@@ -707,15 +877,26 @@
       const row = Math.floor(y / squareHeight);
       const cell = nMosaic.getCell(row, col);
       if (cell !== null && cell.included) {
+        if (nMosaic.pencilMode) {
+          if (paintButton === 2) {
+            cell.pencilMarks.delete(nMosaic.selectedColor);
+          } else if (paintButton === 0) {
+            cell.pencilMarks.add(nMosaic.selectedColor);
+          }
+          return;
+        }
         if (paintButton === 2) {
           cell.color = null;
         } else if (paintButton === 0) {
           cell.color = nMosaic.selectedColor;
+          cell.pencilMarks.clear();
         }
         const allCluesValid = nMosaic.clues.every((clue) => {
           const clueCell = nMosaic.getCell(clue.row, clue.col);
           if (!clueCell) return false;
-          const guessCount = clueCell.neighbors.filter((neighbor) => neighbor.color === clue.color).length;
+          const guessCount = clueCell.neighbors.filter(
+            (neighbor) => neighbor.color === clue.color
+          ).length;
           return guessCount === clue.count;
         });
         if (nMosaic.cells.every((cell2) => !cell2.included || cell2.color !== null) && allCluesValid) {
@@ -746,17 +927,23 @@
     canvas.addEventListener("wheel", handleWheel, { passive: false });
     paletteCanvas.addEventListener("wheel", handleWheel, { passive: false });
     function regenerate() {
-      nMosaic.regenerate(parseInt(heightInput.value), parseInt(widthInput.value), parseInt(colorsInput.value), parseFloat(shapeFractionInput.value), difficultyInput.value);
+      nMosaic.regenerate(
+        parseInt(heightInput.value),
+        parseInt(widthInput.value),
+        parseInt(colorsInput.value),
+        parseFloat(shapeFractionInput.value),
+        difficultyInput.value
+      );
     }
     regenerateButton.onclick = regenerate;
-    revealSolutionButton.onclick = (() => {
+    revealSolutionButton.onclick = () => {
       nMosaic.showSolution = !nMosaic.showSolution;
       if (nMosaic.showSolution) {
         revealSolutionButton.textContent = "HideSolution()";
       } else {
         revealSolutionButton.textContent = "ShowSolution()";
       }
-    });
+    };
     function gameLoop() {
       nMosaic.drawBackground();
       nMosaic.drawBoard();

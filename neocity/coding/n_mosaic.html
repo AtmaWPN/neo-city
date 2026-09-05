@@ -17,7 +17,8 @@
 
     <p>I was inspired by the game <a href="https://www.proverbsgame.com/">Proverbs</a> to make my own variant of the classic Mosaic puzzle.</p>
     <p>In N-Mosaic, clues have an associated color that indicates the number of cells in it's neighbourhood that are that color.</p>
-    <p>Left-Click to color a cell, Right-Click to clear a cell, Scroll Wheel to change the currently selected color.</p>
+    <p>The neighbourhood of a cell is the 3x3 square of cells that surrounds it, including itself.</p>
+    <p>Left-Click to color a cell, Right-Click to clear a cell, Scroll Wheel to change the currently selected color. Click the pencil button at the bottom of the palette to toggle Pencil Mode — in pencil mode Left-Click adds the selected color as a candidate mark on a cell and Right-Click removes it.</p>
 
     <div id="n_mosaic_controls">
       <label for="n_mosaic_width">Width:</label>
@@ -45,6 +46,7 @@
       <button id="n_mosaic_reveal_solution" class="function">ShowSolution()</button>
     </div>
     <script src="../SATjs-master/SAT.js"></script>
+    <script src="../SATjs-master/SAT_worker.js"></script>
     <script src="../SATjs-master/helpers.js"></script>
     <script src="n_mosaic.js"></script>
   </body>

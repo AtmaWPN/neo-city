@@ -17,6 +17,15 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+onmessage = (e) => {
+  try {
+    const satResult = satSolve(e.data[0], e.data[1]);
+    e.ports[0].postMessage({ result: satResult });
+  } catch (/** @type {any} */ error) {
+    e.ports[0].postMessage({ error: error.message });
+  }
+};
+
  /** @param {State} state */
 function lcg(state) {
   const m = 2147483648;
@@ -54,6 +63,25 @@ class State {
     this.increment = 1;
     /** @type {number} */
     this.nextRandom = randomSeed;
+    /** @type {Stats} */
+    this.stats = new Stats();
+  }
+}
+
+class Stats {
+  constructor() {
+    /** @type {number} */
+    this.maxPropagationDepth = 0;
+    /** @type {number} */
+    this.maxDecisionLevel = 0;
+    /** @type {number} */
+    this.totalPropagations = 0;
+    /** @type {number} */
+    this.totalDecisions = 0;
+    /** @type {number} */
+    this.totalConflicts = 0;
+    /** @type {number} */
+    this.totalLearnts = 0;
   }
 }
 
@@ -237,14 +265,16 @@ function satSelectLiteral(state) {
     if (maxVar === 0 || nextVar.score > (state.vars[maxVar]?.score ?? 0)) maxVar = i;
   }
 
+  state.stats.totalDecisions++;
   // (lcg(state) / 2147483648)
-  return Math.random() < 0.5 ? -maxVar : maxVar;
+  return (lcg(state) / 2147483648) < 0.5 ? -maxVar : maxVar;
 }
 
 /**
  * Solver main loop.
  * @param {number} size
  * @param {Clause[]} clauses
+ * @returns {{SAT: boolean, stats: Stats}}
  */
 function satSolve(size, clauses) {
   // Create the state:
@@ -253,31 +283,32 @@ function satSolve(size, clauses) {
   for (var i = 0; i < clauses.length; i++) satAddClause(state, clauses[i]);
 
   // UNSAT if empty clause has been asserted:
-  if (state.empty) return false;
+  if (state.empty) return {SAT: false, stats: state.stats};
 
   // Find and propagate unit clauses:
   for (var i = 1; i < state.vars.length; i++) {
     var v = literalGetVar(state, i);
     if (v.unit) {
       var literal = v.unit_sign ? -i : i;
-      if (!satUnitPropagate(state, literal, null)) return false;
+      if (!satUnitPropagate(state, literal, null)) return {SAT: false, stats: state.stats};
     }
   }
 
   // Main loop:
   for (state.dlevel = 1; true; state.dlevel++) {
-    var literal = satSelectLiteral(state);
+    var literal = satSelectLiteral(state); // This is a decision
     if (literal == 0) {
       // All variables are now set; and no conflicts; therefore SAT
-      return true;
+      return {SAT: true, stats: state.stats};
     }
+
+    state.stats.maxDecisionLevel = Math.max(state.stats.maxDecisionLevel, state.dlevel);
+
     if (!satUnitPropagate(state, literal, null)) {
       // UNSAT
-      return false;
+      return {SAT: false, stats: state.stats};
     }
   }
-
-  return true;
 }
 
 /**
@@ -289,12 +320,17 @@ function satSolve(size, clauses) {
 function satUnitPropagate(state, literal, reason) {
   var curr, next;
   var restart;
+  let maxPropagationDepth = 0;
 
   do {
     curr = state.trail.length;
     next = curr + 1;
 
     literalSet(state, literal, reason);
+    if (reason !== null) {
+      maxPropagationDepth++;
+      state.stats.totalPropagations++;
+    }
 
     restart = false;
     while (curr < next) {
@@ -333,7 +369,11 @@ function satUnitPropagate(state, literal, reason) {
 
           // All literals in 'clause' are false; conflict!
           reason = satBacktrack(state, clause);
-          if (reason == null) return false;
+          state.stats.totalConflicts++;
+          if (reason == null) {
+            state.stats.maxPropagationDepth = Math.max(state.stats.maxPropagationDepth, maxPropagationDepth);
+            return false;
+          }
           literal = reason[0];
           restart = true;
           break;
@@ -358,6 +398,7 @@ function satUnitPropagate(state, literal, reason) {
     }
   } while (restart);
 
+  state.stats.maxPropagationDepth = Math.max(state.stats.maxPropagationDepth, maxPropagationDepth);
   return true;
 }
 
@@ -450,6 +491,7 @@ function satBacktrack(state, reason) {
 
   // Add the no-good clause:
   satAddClause(state, nogood);
+  state.stats.totalLearnts++;
   incrementActivity(state, nogood);
 
   state.dlevel = blevel;
