@@ -178,11 +178,7 @@ class NMosaic {
 
     this.generateBoardShape();
 
-    if (this.BOARD_DIFFICULTY === "random") {
-      this.generateRandomPuzzle();
-    } else {
-      this.generateRecipePuzzle();
-    }
+    this.generateRecipePuzzle();
   }
 
   applyRecipe(recipe: Recipe): void {
@@ -393,16 +389,133 @@ class NMosaic {
     return recipes;
   }
 
+  solveSimpleRemainder(nMosaic: NMosaic): NMosaic {
+    let applied: number = 0;
+
+    do {
+      nMosaic.clues.forEach((clue) => {});
+    } while (applied > 0);
+
+    return nMosaic;
+  }
+
   async generateRecipePuzzle(): Promise<void> {
     const recipeGenerators: (() => Recipe[])[] = [];
-    if (this.BOARD_DIFFICULTY === "easy") {
-      recipeGenerators.push(() => this.getSimpleRemainderRecipes());
-    } else if (this.BOARD_DIFFICULTY === "medium") {
-      recipeGenerators.push(() => this.getSimpleRemainderRecipes());
-      recipeGenerators.push(() => this.getTotalNeighbourhoodSumRecipes());
-      recipeGenerators.push(() => this.getExcludedDifferenceRecipes());
-    } else if (this.BOARD_DIFFICULTY === "sat") {
-      // SAT difficulty: use SAT solver to generate a uniquely solvable puzzle
+    const techniqueSolvers: ((nMosaic: NMosaic) => NMosaic)[] = [];
+
+    switch (this.BOARD_DIFFICULTY) {
+      case "easy forward":
+        recipeGenerators.push(() => this.getSimpleRemainderRecipes());
+        break;
+      case "hard forward":
+        recipeGenerators.push(() => this.getSimpleRemainderRecipes());
+        recipeGenerators.push(() => this.getTotalNeighbourhoodSumRecipes());
+        recipeGenerators.push(() => this.getExcludedDifferenceRecipes());
+        break;
+      case "easy backward":
+        techniqueSolvers;
+        break;
+      case "medium backward":
+        break;
+      case "hard backward":
+        break;
+      case "sat backward":
+        // SAT difficulty: use SAT solver to generate a uniquely solvable puzzle
+        const maxAttempts = 10;
+        let allClues: NMosaicClue[] = [];
+        let attempts = 0;
+        do {
+          for (const cell of this.cells) {
+            if (!cell.included) continue;
+            cell.solutionColor = Math.floor(Math.random() * this.BOARD_COLORS);
+          }
+
+          allClues = [];
+          for (const cell of this.cells) {
+            if (!cell.included) continue;
+            for (let k = 0; k < this.BOARD_COLORS; k++) {
+              const count = cell.neighbors.filter(
+                (neighbor) => neighbor.solutionColor === k,
+              ).length;
+              allClues.push(new NMosaicClue(cell.row, cell.col, k, count));
+            }
+          }
+
+          attempts++;
+        } while (
+          !(await this.satHasUniqueSolution(allClues)) &&
+          attempts < maxAttempts
+        );
+
+        if (attempts >= maxAttempts) {
+          console.warn(
+            `no unique solution after ${maxAttempts} attempts. Try more colors or a larger board.`,
+          );
+        }
+
+        // Phase 1: Remove clues from cells with multiple clues,
+        //    reducing to at most one clue per cell.
+        const retainedClues = allClues.slice();
+        const cluesPerCell = new Map<string, number>();
+        for (const clue of allClues) {
+          const key = `${clue.row},${clue.col}`;
+          cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) + 1);
+        }
+
+        const shuffledPhase1 = allClues.slice().sort(() => Math.random() - 0.5);
+        for (const clue of shuffledPhase1) {
+          const key = `${clue.row},${clue.col}`;
+          if ((cluesPerCell.get(key) ?? 0) <= 1) continue;
+
+          const index = retainedClues.indexOf(clue);
+          if (index === -1) continue;
+          retainedClues.splice(index, 1);
+
+          if (await this.satHasUniqueSolution(retainedClues)) {
+            cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
+          } else {
+            retainedClues.splice(index, 0, clue);
+          }
+        }
+
+        // Phase 2: Try to remove remaining clues (cells with exactly
+        //    one clue) until no more can be removed without losing
+        //    unique solvability.  Some cells may end up with 0 clues.
+        let progress = true;
+        while (progress) {
+          progress = false;
+          const shuffledPhase2 = retainedClues
+            .slice()
+            .sort(() => Math.random() - 0.5);
+          for (const clue of shuffledPhase2) {
+            const key = `${clue.row},${clue.col}`;
+            if ((cluesPerCell.get(key) ?? 0) === 0) continue;
+
+            const index = retainedClues.indexOf(clue);
+            if (index === -1) continue;
+            retainedClues.splice(index, 1);
+
+            if (await this.satHasUniqueSolution(retainedClues)) {
+              cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
+              progress = true;
+            } else {
+              retainedClues.splice(index, 0, clue);
+            }
+          }
+        }
+
+        this.clues = retainedClues;
+        return; // SAT handles its own puzzle generation; skip the recipe loop below
+      case "random":
+        // This can be treated as a backsolve method with no solvers
+        break;
+      default:
+        console.log("Unrecognized Difficulty Option");
+        return;
+    }
+
+    if (this.BOARD_DIFFICULTY.includes("backward") || this.BOARD_DIFFICULTY === "random") {
+      // Step 1: generate a solvable random board
       const maxAttempts = 10;
       let allClues: NMosaicClue[] = [];
       let attempts = 0;
@@ -430,68 +543,14 @@ class NMosaic {
       );
 
       if (attempts >= maxAttempts) {
-        console.warn(
-          "SAT difficulty: no unique solution after",
-          maxAttempts,
-          "attempts. Try more colors or a larger board.",
+        console.error(
+          `${this.BOARD_DIFFICULTY}: no unique solution after ${maxAttempts} attempts.`,
         );
+        return;
       }
 
-      // Phase 1: Remove clues from cells with multiple clues,
-      //    reducing to at most one clue per cell.
-      const retainedClues = allClues.slice();
-      const cluesPerCell = new Map<string, number>();
-      for (const clue of allClues) {
-        const key = `${clue.row},${clue.col}`;
-        cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) + 1);
-      }
+      // Step 2: Randomly remove clues from cells with multiple clues and check solvability
 
-      const shuffledPhase1 = allClues.slice().sort(() => Math.random() - 0.5);
-      for (const clue of shuffledPhase1) {
-        const key = `${clue.row},${clue.col}`;
-        if ((cluesPerCell.get(key) ?? 0) <= 1) continue;
-
-        const index = retainedClues.indexOf(clue);
-        if (index === -1) continue;
-        retainedClues.splice(index, 1);
-
-        if (await this.satHasUniqueSolution(retainedClues)) {
-          cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
-        } else {
-          retainedClues.splice(index, 0, clue);
-        }
-      }
-
-      // Phase 2: Try to remove remaining clues (cells with exactly
-      //    one clue) until no more can be removed without losing
-      //    unique solvability.  Some cells may end up with 0 clues.
-      let progress = true;
-      while (progress) {
-        progress = false;
-        const shuffledPhase2 = retainedClues
-          .slice()
-          .sort(() => Math.random() - 0.5);
-        for (const clue of shuffledPhase2) {
-          const key = `${clue.row},${clue.col}`;
-          if ((cluesPerCell.get(key) ?? 0) === 0) continue;
-
-          const index = retainedClues.indexOf(clue);
-          if (index === -1) continue;
-          retainedClues.splice(index, 1);
-
-          if (await this.satHasUniqueSolution(retainedClues)) {
-            cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
-            progress = true;
-          } else {
-            retainedClues.splice(index, 0, clue);
-          }
-        }
-      }
-
-      this.clues = retainedClues;
-      return; // SAT handles its own puzzle generation; skip the recipe loop below
-    } else {
-      console.log("Unrecognized Difficulty Option");
       return;
     }
 

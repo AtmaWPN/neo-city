@@ -108,11 +108,7 @@
         }
       }
       this.generateBoardShape();
-      if (this.BOARD_DIFFICULTY === "random") {
-        this.generateRandomPuzzle();
-      } else {
-        this.generateRecipePuzzle();
-      }
+      this.generateRecipePuzzle();
     }
     applyRecipe(recipe) {
       for (const item of recipe.toColor) {
@@ -258,15 +254,106 @@
       }
       return recipes;
     }
+    solveSimpleRemainder(nMosaic) {
+      let applied = 0;
+      do {
+        nMosaic.clues.forEach((clue) => {
+        });
+      } while (applied > 0);
+      return nMosaic;
+    }
     async generateRecipePuzzle() {
       const recipeGenerators = [];
-      if (this.BOARD_DIFFICULTY === "easy") {
-        recipeGenerators.push(() => this.getSimpleRemainderRecipes());
-      } else if (this.BOARD_DIFFICULTY === "medium") {
-        recipeGenerators.push(() => this.getSimpleRemainderRecipes());
-        recipeGenerators.push(() => this.getTotalNeighbourhoodSumRecipes());
-        recipeGenerators.push(() => this.getExcludedDifferenceRecipes());
-      } else if (this.BOARD_DIFFICULTY === "sat") {
+      const techniqueSolvers = [];
+      switch (this.BOARD_DIFFICULTY) {
+        case "easy forward":
+          recipeGenerators.push(() => this.getSimpleRemainderRecipes());
+          break;
+        case "hard forward":
+          recipeGenerators.push(() => this.getSimpleRemainderRecipes());
+          recipeGenerators.push(() => this.getTotalNeighbourhoodSumRecipes());
+          recipeGenerators.push(() => this.getExcludedDifferenceRecipes());
+          break;
+        case "easy backward":
+          techniqueSolvers;
+          break;
+        case "medium backward":
+          break;
+        case "hard backward":
+          break;
+        case "sat backward":
+          const maxAttempts = 10;
+          let allClues = [];
+          let attempts = 0;
+          do {
+            for (const cell of this.cells) {
+              if (!cell.included) continue;
+              cell.solutionColor = Math.floor(Math.random() * this.BOARD_COLORS);
+            }
+            allClues = [];
+            for (const cell of this.cells) {
+              if (!cell.included) continue;
+              for (let k = 0; k < this.BOARD_COLORS; k++) {
+                const count = cell.neighbors.filter(
+                  (neighbor) => neighbor.solutionColor === k
+                ).length;
+                allClues.push(new NMosaicClue(cell.row, cell.col, k, count));
+              }
+            }
+            attempts++;
+          } while (!await this.satHasUniqueSolution(allClues) && attempts < maxAttempts);
+          if (attempts >= maxAttempts) {
+            console.warn(
+              `no unique solution after ${maxAttempts} attempts. Try more colors or a larger board.`
+            );
+          }
+          const retainedClues = allClues.slice();
+          const cluesPerCell = /* @__PURE__ */ new Map();
+          for (const clue of allClues) {
+            const key = `${clue.row},${clue.col}`;
+            cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) + 1);
+          }
+          const shuffledPhase1 = allClues.slice().sort(() => Math.random() - 0.5);
+          for (const clue of shuffledPhase1) {
+            const key = `${clue.row},${clue.col}`;
+            if ((cluesPerCell.get(key) ?? 0) <= 1) continue;
+            const index = retainedClues.indexOf(clue);
+            if (index === -1) continue;
+            retainedClues.splice(index, 1);
+            if (await this.satHasUniqueSolution(retainedClues)) {
+              cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
+            } else {
+              retainedClues.splice(index, 0, clue);
+            }
+          }
+          let progress = true;
+          while (progress) {
+            progress = false;
+            const shuffledPhase2 = retainedClues.slice().sort(() => Math.random() - 0.5);
+            for (const clue of shuffledPhase2) {
+              const key = `${clue.row},${clue.col}`;
+              if ((cluesPerCell.get(key) ?? 0) === 0) continue;
+              const index = retainedClues.indexOf(clue);
+              if (index === -1) continue;
+              retainedClues.splice(index, 1);
+              if (await this.satHasUniqueSolution(retainedClues)) {
+                cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
+                progress = true;
+              } else {
+                retainedClues.splice(index, 0, clue);
+              }
+            }
+          }
+          this.clues = retainedClues;
+          return;
+        // SAT handles its own puzzle generation; skip the recipe loop below
+        case "random":
+          break;
+        default:
+          console.log("Unrecognized Difficulty Option");
+          return;
+      }
+      if (this.BOARD_DIFFICULTY.includes("backward") || this.BOARD_DIFFICULTY === "random") {
         const maxAttempts = 10;
         let allClues = [];
         let attempts = 0;
@@ -288,53 +375,11 @@
           attempts++;
         } while (!await this.satHasUniqueSolution(allClues) && attempts < maxAttempts);
         if (attempts >= maxAttempts) {
-          console.warn(
-            "SAT difficulty: no unique solution after",
-            maxAttempts,
-            "attempts. Try more colors or a larger board."
+          console.error(
+            `${this.BOARD_DIFFICULTY}: no unique solution after ${maxAttempts} attempts.`
           );
+          return;
         }
-        const retainedClues = allClues.slice();
-        const cluesPerCell = /* @__PURE__ */ new Map();
-        for (const clue of allClues) {
-          const key = `${clue.row},${clue.col}`;
-          cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) + 1);
-        }
-        const shuffledPhase1 = allClues.slice().sort(() => Math.random() - 0.5);
-        for (const clue of shuffledPhase1) {
-          const key = `${clue.row},${clue.col}`;
-          if ((cluesPerCell.get(key) ?? 0) <= 1) continue;
-          const index = retainedClues.indexOf(clue);
-          if (index === -1) continue;
-          retainedClues.splice(index, 1);
-          if (await this.satHasUniqueSolution(retainedClues)) {
-            cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
-          } else {
-            retainedClues.splice(index, 0, clue);
-          }
-        }
-        let progress = true;
-        while (progress) {
-          progress = false;
-          const shuffledPhase2 = retainedClues.slice().sort(() => Math.random() - 0.5);
-          for (const clue of shuffledPhase2) {
-            const key = `${clue.row},${clue.col}`;
-            if ((cluesPerCell.get(key) ?? 0) === 0) continue;
-            const index = retainedClues.indexOf(clue);
-            if (index === -1) continue;
-            retainedClues.splice(index, 1);
-            if (await this.satHasUniqueSolution(retainedClues)) {
-              cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
-              progress = true;
-            } else {
-              retainedClues.splice(index, 0, clue);
-            }
-          }
-        }
-        this.clues = retainedClues;
-        return;
-      } else {
-        console.log("Unrecognized Difficulty Option");
         return;
       }
       while (true) {
