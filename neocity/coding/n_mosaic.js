@@ -257,7 +257,9 @@
     solveSimpleRemainder(nMosaic) {
       let applied = 0;
       do {
+        applied = 0;
         nMosaic.clues.forEach((clue) => {
+          const adjustedClue = clue;
         });
       } while (applied > 0);
       return nMosaic;

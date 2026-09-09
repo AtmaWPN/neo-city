@@ -389,14 +389,91 @@ class NMosaic {
     return recipes;
   }
 
-  solveSimpleRemainder(nMosaic: NMosaic): NMosaic {
+  solveSimpleRemainder(nMosaic: NMosaic): number {
     let applied: number = 0;
 
-    do {
-      nMosaic.clues.forEach((clue) => {});
-    } while (applied > 0);
+    nMosaic.clues.forEach((clue) => {
+      const neighbourhood = nMosaic.getCell(clue.row, clue.col)?.neighbors ?? [];
+      const adjustedClue = clue.count - neighbourhood.filter((cell) => cell.color === clue.color).length;
+      const emptyCells = neighbourhood.filter((cell) => cell.color === null);
+      if (adjustedClue === emptyCells.length) {
+        emptyCells.forEach((cell) => cell.color = clue.color);
+        applied++;
+      }
+    });
 
-    return nMosaic;
+    return applied;
+  }
+
+  buildCandidateBoard(nMosaic: NMosaic): Set<number>[][] {
+    const candidateBoard: Set<number>[][] = [];
+    for (let row = 0; row < nMosaic.BOARD_HEIGHT; row++) {
+      candidateBoard.push([]);
+      for (let col = 0; col < nMosaic.BOARD_HEIGHT; col++) {
+        const candidates = new Set<number>();
+        for (let color = 0; color < nMosaic.BOARD_COLORS; color++) {
+          candidates.add(color);
+        }
+        candidateBoard[col].push(candidates);
+      }
+    }
+
+    nMosaic.clues.forEach((clue) => {
+      const neighbourhood = nMosaic.getCell(clue.row, clue.col)?.neighbors ?? [];
+      neighbourhood.filter((cell) => cell.color !== null)
+        .forEach((cell) => candidateBoard[cell.row][cell.col].clear());
+
+      if (clue.count === neighbourhood.filter((cell) => cell.color === clue.color).length) {
+        neighbourhood.filter((cell) => cell.color === null)
+          .forEach((cell) => candidateBoard[cell.row][cell.col].delete(clue.color));
+      }
+    })
+
+    return candidateBoard;
+  }
+
+  solveLastCandidate(nMosaic: NMosaic): number {
+    let applied: number = 0;
+    const candidateBoard = this.buildCandidateBoard(nMosaic);
+
+    for (let row = 0; row < nMosaic.BOARD_HEIGHT; row++) {
+      for (let col = 0; col < nMosaic.BOARD_HEIGHT; col++) {
+        if (candidateBoard[row][col].size !== 1) continue;
+
+        const cell = nMosaic.getCell(row, col);
+        if (!cell) continue;
+
+        cell.color = [...candidateBoard[row][col]][0];
+        applied++;
+      }
+    }
+
+    return applied;
+  }
+
+  solveCandidateSimpleRemainder(nMosaic: NMosaic): number {
+    let applied: number = 0;
+    const candidateBoard = this.buildCandidateBoard(nMosaic);
+
+    nMosaic.clues.forEach((clue) => {
+      const neighbourhood = nMosaic.getCell(clue.row, clue.col)?.neighbors ?? [];
+      const adjustedClue = clue.count - neighbourhood.filter((cell) => cell.color === clue.color).length;
+      const candidateCells = neighbourhood.filter((cell) => candidateBoard[cell.row][cell.col].has(clue.color));
+      if (adjustedClue === candidateCells.length) {
+        candidateCells.forEach((cell) => cell.color = clue.color);
+        applied++;
+      }
+    });
+
+    return applied;
+  }
+
+  solveSubsetSimpleRemainder(nMosaic: NMosaic): number {
+    let applied: number = 0;
+
+
+
+    return applied;
   }
 
   async generateRecipePuzzle(): Promise<void> {
