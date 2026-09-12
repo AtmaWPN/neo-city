@@ -178,7 +178,7 @@ class NMosaic {
 
     this.generateBoardShape();
 
-    this.generateRecipePuzzle();
+    this.puzzleGeneratorFactory();
   }
 
   applyRecipe(recipe: Recipe): void {
@@ -451,7 +451,7 @@ class NMosaic {
     return applied;
   }
 
-  solveCandidateSimpleRemainder(nMosaic: NMosaic): number {
+  solveSimpleCandidateRemainder(nMosaic: NMosaic): number {
     let applied: number = 0;
     const candidateBoard = this.buildCandidateBoard(nMosaic);
 
@@ -468,17 +468,160 @@ class NMosaic {
     return applied;
   }
 
-  solveSubsetSimpleRemainder(nMosaic: NMosaic): number {
+  solveSimpleSubsetRemainder(nMosaic: NMosaic): number {
     let applied: number = 0;
 
+    nMosaic.clues.forEach((clue) => {
+      const clueCell = nMosaic.getCell(clue.row, clue.col);
+      nMosaic.clues
+        .filter((subClue) => Math.abs(subClue.col - clue.col) <= 2 && Math.abs(subClue.row - clue.row) <= 2)
+        .filter((subClue) => {
+          const clueArea = clueCell?.neighbors
+            .filter((neighbour) => neighbour.color === null) ?? [];
+          const subClueArea = nMosaic.getCell(subClue.row, subClue.col)?.neighbors
+            .filter((neighbour) => neighbour.color === null) ?? [];
+          return clueArea.every((cell) => subClueArea.includes(cell));
+        })
+        .forEach((subClue) => {
+          const clueArea = clueCell?.neighbors
+            .filter((neighbour) => neighbour.color === null) ?? [];
+          const subClueCell = nMosaic.getCell(subClue.row, subClue.col)
+          const subClueArea = subClueCell?.neighbors
+            .filter((neighbour) => neighbour.color === null) ?? [];
+          const effectiveClueValue = clue.count - (clueCell?.neighbors
+            .filter((neighbour) => neighbour.color === clue.color)?.length ?? 0);
+          const effectiveSubClueValue = subClue.count - (subClueCell?.neighbors
+            .filter((neighbour) => neighbour.color === null)?.length ?? 0);
 
+          const clueExclusiveArea = clueArea.filter((cell) => !subClueArea.includes(cell));
+          if (clue.color === subClue.color) {
+            if ((effectiveClueValue - effectiveSubClueValue) === clueExclusiveArea.length) {
+              applied++;
+              clueExclusiveArea.forEach((cell) => cell.color = clue.color);
+            }
+          } else {
+            if ((effectiveClueValue - (subClueArea.length - effectiveSubClueValue)) === clueExclusiveArea.length) {
+              applied++;
+              clueExclusiveArea.forEach((cell) => cell.color = clue.color);
+            }
+          }
+        })
+    });
 
     return applied;
   }
 
-  async generateRecipePuzzle(): Promise<void> {
+  async generateRecipePuzzle(recipeGenerators: (() => Recipe[])[]): Promise<void> {
+    while (true) {
+      const allRecipes: Recipe[] = [];
+      for (const gen of recipeGenerators) {
+        allRecipes.push(...gen());
+      }
+      if (allRecipes.length === 0) break;
+
+      let applied = false;
+      while (allRecipes.length > 0 && !applied) {
+        const totalWeight = allRecipes.reduce((sum, r) => sum + r.weight, 0);
+        let rng = Math.random() * totalWeight;
+        let selectedIndex = -1;
+        for (let i = 0; i < allRecipes.length; i++) {
+          rng -= allRecipes[i].weight;
+          if (rng < 0) {
+            selectedIndex = i;
+            break;
+          }
+        }
+        if (selectedIndex < 0) break;
+
+        const recipe = allRecipes[selectedIndex];
+        allRecipes.splice(selectedIndex, 1);
+
+        // Save state before applying
+        const savedClues = this.clues.slice();
+        const savedColors = new Map<NMosaicCell, number | null>();
+        for (const item of recipe.toColor) {
+          savedColors.set(item.cell, item.cell.solutionColor);
+        }
+
+        this.applyRecipe(recipe);
+
+        // Verify consistency with SAT solver
+        if (await this.satIsConsistent(this.clues)) {
+          applied = true;
+          break;
+        }
+
+        // Revert — clues would conflict
+        this.clues = savedClues;
+        for (const [cell, color] of savedColors) {
+          cell.solutionColor = color;
+        }
+      }
+
+      if (!applied) break;
+    }
+  }
+
+  async backwardPuzzleGenerator(techniqueSolvers: ((nMosaic: NMosaic) => number)[]): Promise<void> {
+    let tries = 0;
+    do {
+      // TODO: clear out any current puzzle
+
+
+      this.generateRandomPuzzle();
+
+      let done = false;
+      while (!done) {
+        done = true;
+        techniqueSolvers.forEach(async (solver) => {
+          while (solver(this) > 0) {
+            done = false;
+          }
+        });
+      }
+
+      tries++;
+    } while (!this.cells.every((cell) => cell.color !== null) || !this.clues.every((clue) => {
+      const neighbourhood = this.getCell(clue.row, clue.col)?.neighbors ?? [];
+      return neighbourhood.filter((cell) => cell.color === clue.color).length === clue.count;
+    }))
+
+    console.log(`Found a solvable random pattern in ${tries} attempts`);
+
+    const shuffledClues = this.clues.slice().sort(() => Math.random() - 0.5);
+
+    this.clues.forEach((clue) => {
+      const index = Math.floor(Math.random() * this.clues.length);
+      const removedClue = this.clues.shift();
+      if (!removedClue) throw new Error("clues is empty");
+
+      // run the solvers until they are done
+      let done = false;
+      while (!done) {
+        done = true;
+        techniqueSolvers.forEach(async (solver) => {
+          while (solver(this) > 0) {
+            done = false;
+          }
+        });
+      }
+
+      // check if the puzzle is solved
+      const solved = this.cells.every((cell) => cell.color !== null) && this.clues.every((clue) => {
+        const neighbourhood = this.getCell(clue.row, clue.col)?.neighbors ?? [];
+        return neighbourhood.filter((cell) => cell.color === clue.color).length === clue.count;
+      });
+
+      // if not solved, put the clue back
+      if (!solved) {
+        this.clues.push(removedClue);
+      }
+    });
+  }
+
+  async puzzleGeneratorFactory(): Promise <void> {
     const recipeGenerators: (() => Recipe[])[] = [];
-    const techniqueSolvers: ((nMosaic: NMosaic) => NMosaic)[] = [];
+    const techniqueSolvers: ((nMosaic: NMosaic) => number)[] = [];
 
     switch (this.BOARD_DIFFICULTY) {
       case "easy forward":
@@ -631,54 +774,6 @@ class NMosaic {
       return;
     }
 
-    while (true) {
-      const allRecipes: Recipe[] = [];
-      for (const gen of recipeGenerators) {
-        allRecipes.push(...gen());
-      }
-      if (allRecipes.length === 0) break;
-
-      let applied = false;
-      while (allRecipes.length > 0 && !applied) {
-        const totalWeight = allRecipes.reduce((sum, r) => sum + r.weight, 0);
-        let rng = Math.random() * totalWeight;
-        let selectedIndex = -1;
-        for (let i = 0; i < allRecipes.length; i++) {
-          rng -= allRecipes[i].weight;
-          if (rng < 0) {
-            selectedIndex = i;
-            break;
-          }
-        }
-        if (selectedIndex < 0) break;
-
-        const recipe = allRecipes[selectedIndex];
-        allRecipes.splice(selectedIndex, 1);
-
-        // Save state before applying
-        const savedClues = this.clues.slice();
-        const savedColors = new Map<NMosaicCell, number | null>();
-        for (const item of recipe.toColor) {
-          savedColors.set(item.cell, item.cell.solutionColor);
-        }
-
-        this.applyRecipe(recipe);
-
-        // Verify consistency with SAT solver
-        if (await this.satIsConsistent(this.clues)) {
-          applied = true;
-          break;
-        }
-
-        // Revert — clues would conflict
-        this.clues = savedClues;
-        for (const [cell, color] of savedColors) {
-          cell.solutionColor = color;
-        }
-      }
-
-      if (!applied) break;
-    }
   }
 
   generateRandomPuzzle(): void {
@@ -718,6 +813,8 @@ class NMosaic {
     console.log(this.clues);
   }
 
+  // the neighbours in this function have nothing to do with a cell's neighbourhood
+  // they are just for generating the board shape
   generateBoardShape() {
     const totalCells = this.BOARD_HEIGHT * this.BOARD_WIDTH;
     const targetCount = Math.max(
