@@ -30,12 +30,12 @@ You win when both conditions hold simultaneously:
 - WHEN: The Cell is empty and has only one candidate color (candidates are calculated using satisfied clues to rule out the clue color in all empty cells in that neighbourhood)
 - OUTPUT: The cell is marked with the candidate color
 
-~Simple Remainder Candidates~
+~Simple Candidates Remainder~
 - INPUT: Single Clue and all other clues with neighbourhoods that overlap with that clue's neighbourhood
 - WHEN: Number of cells with the clue color as a candidate in clue neighbourhood equals the effective clue value
 - OUTPUT: Those cells are marked with the clue color
 
-Subset Simple Remainder
+Simple Subset Remainder
 - INPUT: Single Clue and all other same color clues with neighbourhoods that are contained by that clue's neighbourhood
 - WHEN: The neighbourhood of this clue (A) fully contains the neighbourhood of another clue (B) and effective value of A minus the effective value of B is equal to the number of empty cells in A's neighbourhood but not B's
 - OUTPUT: Those empty cells are marked with the clue color
