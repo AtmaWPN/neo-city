@@ -413,7 +413,7 @@ class NMosaic {
     const candidateBoard: Set<number>[][] = [];
     for (let row = 0; row < nMosaic.BOARD_HEIGHT; row++) {
       candidateBoard.push([]);
-      for (let col = 0; col < nMosaic.BOARD_HEIGHT; col++) {
+      for (let col = 0; col < nMosaic.BOARD_WIDTH; col++) {
         const candidates = new Set<number>();
         for (let color = 0; color < nMosaic.BOARD_COLORS; color++) {
           candidates.add(color);
@@ -498,26 +498,18 @@ class NMosaic {
             Math.abs(subClue.col - clue.col) <= 2 &&
             Math.abs(subClue.row - clue.row) <= 2,
         )
-        .filter((subClue) => {
-          const clueArea =
-            clueCell?.neighbors.filter(
-              (neighbour) => neighbour.color === null
-            ) ?? [];
-          const subClueArea =
-            nMosaic
-              .getCell(subClue.row, subClue.col)
-              ?.neighbors.filter((neighbour) => neighbour.color === null) ?? [];
-          return subClueArea.every((cell) => clueArea.includes(cell));
-        })
         .forEach((subClue) => {
           const clueArea =
             clueCell?.neighbors.filter(
               (neighbour) => neighbour.color === null,
             ) ?? [];
           const subClueCell = nMosaic.getCell(subClue.row, subClue.col);
-          const subClueArea = subClueCell?.neighbors.filter(
-              (neighbour) => neighbour.color === null
+          const subClueArea =
+            subClueCell?.neighbors.filter(
+              (neighbour) => neighbour.color === null,
             ) ?? [];
+          if (!subClueArea.every((cell) => clueArea.includes(cell))) return;
+
           const effectiveClueValue =
             clue.count -
             (clueCell?.neighbors.filter(
@@ -526,7 +518,7 @@ class NMosaic {
           const effectiveSubClueValue =
             subClue.count -
             (subClueCell?.neighbors.filter(
-              (neighbour) => neighbour.color === null
+              (neighbour) => neighbour.color === subClue.color,
             )?.length ?? 0);
 
           const clueExclusiveArea = clueArea.filter(
@@ -534,8 +526,9 @@ class NMosaic {
           );
           if (clue.color === subClue.color) {
             if (
-              clueExclusiveArea.length > 0 && effectiveClueValue - effectiveSubClueValue ===
-              clueExclusiveArea.length
+              clueExclusiveArea.length > 0 &&
+              effectiveClueValue - effectiveSubClueValue ===
+                clueExclusiveArea.length
             ) {
               applied++;
               clueExclusiveArea.forEach((cell) => (cell.color = clue.color));
@@ -543,8 +536,9 @@ class NMosaic {
           } else {
             if (
               clueExclusiveArea.length > 0 &&
-              effectiveClueValue - (subClueArea.length - effectiveSubClueValue) ===
-              clueExclusiveArea.length
+              effectiveClueValue -
+                (subClueArea.length - effectiveSubClueValue) ===
+                clueExclusiveArea.length
             ) {
               applied++;
               clueExclusiveArea.forEach((cell) => (cell.color = clue.color));
@@ -561,42 +555,63 @@ class NMosaic {
     let applied = 0;
 
     nMosaic.clues.forEach((clueA) => {
-      nMosaic.clues.filter((clueB) =>
-        Math.abs(clueB.col - clueA.col) <= 2 &&
-        Math.abs(clueB.row - clueA.row) <= 2
-      ).forEach((clueB) => {
-        const clueARegion = nMosaic.getCell(clueA.row, clueA.col)?.neighbors ?? [];
-        const clueBRegion = nMosaic.getCell(clueB.row, clueB.col)?.neighbors ?? [];
+      nMosaic.clues
+        .filter(
+          (clueB) =>
+            Math.abs(clueB.col - clueA.col) <= 2 &&
+            Math.abs(clueB.row - clueA.row) <= 2,
+        )
+        .forEach((clueB) => {
+          const clueARegion =
+            nMosaic.getCell(clueA.row, clueA.col)?.neighbors ?? [];
+          const clueBRegion =
+            nMosaic.getCell(clueB.row, clueB.col)?.neighbors ?? [];
 
-        const clueAOpen = clueARegion.filter((cell) => cell.color === null);
-        const clueBOpen = clueBRegion.filter((cell) => cell.color === null);
+          const clueAOpen = clueARegion.filter((cell) => cell.color === null);
+          const clueBOpen = clueBRegion.filter((cell) => cell.color === null);
 
-        const intersection = clueAOpen.filter((cell) => clueBOpen.includes(cell));
-        const aMinusB = clueAOpen.filter((cell) => !clueBOpen.includes(cell));
-        const bMinusA = clueBOpen.filter((cell) => !clueAOpen.includes(cell));
+          const intersection = clueAOpen.filter((cell) =>
+            clueBOpen.includes(cell),
+          );
+          const aMinusB = clueAOpen.filter((cell) => !clueBOpen.includes(cell));
+          const bMinusA = clueBOpen.filter((cell) => !clueAOpen.includes(cell));
 
-        if (!(intersection.length > 0 && aMinusB.length > 0 && bMinusA.length > 0)) return;
+          if (!(
+            intersection.length > 0 &&
+            aMinusB.length > 0 &&
+            bMinusA.length > 0
+          ))
+            return;
 
-        const effectiveClueA = clueA.count - clueARegion.filter((cell) => cell.color === clueA.color).length;
-        const effectiveClueB = clueB.count - clueBRegion.filter((cell) => cell.color === clueB.color).length;
+          const effectiveClueA =
+            clueA.count -
+            clueARegion.filter((cell) => cell.color === clueA.color).length;
+          const effectiveClueB =
+            clueB.count -
+            clueBRegion.filter((cell) => cell.color === clueB.color).length;
 
-        if (clueA.color !== clueB.color &&
-          effectiveClueA + effectiveClueB === clueAOpen.length + bMinusA.length
-        ) {
-          aMinusB.forEach((cell) => cell.color = clueA.color);
-          bMinusA.forEach((cell) => cell.color = clueB.color);
-          // TODO add implied clues for the intersection
-        } else if (clueA.color === clueB.color) {
-          if (effectiveClueA - aMinusB.length === effectiveClueB) {
-            aMinusB.forEach((cell) => cell.color = clueA.color);
-            // TODO remove candidates from the other side
-          } else if (effectiveClueB - bMinusA.length === effectiveClueA) {
-            bMinusA.forEach((cell) => cell.color = clueB.color);
-            // TODO remove candidates from the other side
+          if (
+            clueA.color !== clueB.color &&
+            effectiveClueA + effectiveClueB ===
+              clueAOpen.length + bMinusA.length
+          ) {
+            aMinusB.forEach((cell) => (cell.color = clueA.color));
+            bMinusA.forEach((cell) => (cell.color = clueB.color));
+            applied++;
+            // TODO add implied clues for the intersection
+          } else if (clueA.color === clueB.color) {
+            if (effectiveClueA - aMinusB.length === effectiveClueB) {
+              aMinusB.forEach((cell) => (cell.color = clueA.color));
+              applied++;
+              // TODO remove candidates from the other side
+            } else if (effectiveClueB - bMinusA.length === effectiveClueA) {
+              bMinusA.forEach((cell) => (cell.color = clueB.color));
+              applied++;
+              // TODO remove candidates from the other side
+            }
           }
-        }
-      })
-    })
+        });
+    });
 
     return applied;
   }
@@ -672,11 +687,15 @@ class NMosaic {
           }
         });
       }
-
       tries++;
-      console.log("tries:", tries);
+
+      if (tries > 200) break;
+      // console.log(`Filled Cells: ${this.cells.filter((cell) => cell.color !== null).length} / ${this.cells.filter((cell) => cell.included)}`);
+      this.cells.forEach((cell) => {
+        cell.color = null;
+      });
     } while (
-      !this.cells.every((cell) => cell.color !== null) ||
+      !this.cells.every((cell) => cell.color !== null || !cell.included) ||
       !this.clues.every((clue) => {
         const neighbourhood = this.getCell(clue.row, clue.col)?.neighbors ?? [];
         return (
@@ -686,7 +705,13 @@ class NMosaic {
       })
     );
 
-    console.log(`Found a solvable random pattern in ${tries} attempts`);
+    if (tries <= 200) {
+      console.log(`Found a solvable random pattern in ${tries} attempts`);
+    } else {
+      console.log(
+        `Failed to find a solvable random pattern in ${tries} attempts`,
+      );
+    }
 
     this.clues.sort(() => Math.random() - 0.5);
 
@@ -696,9 +721,6 @@ class NMosaic {
       const removedClue = this.clues.shift();
       if (!removedClue) throw new Error("clues is empty");
 
-      this.cells.forEach((cell) => {
-        cell.color = null;
-      });
       counter++;
 
       // run the solvers until they are done
@@ -714,11 +736,19 @@ class NMosaic {
 
       // check if the puzzle is solved
       const solved =
-        this.cells.every((cell) => cell.color !== null) &&
+        this.cells.every((cell) => cell.color !== null || !cell.included) &&
         this.clues.every((clue) => {
-          const neighbourhood = this.getCell(clue.row, clue.col)?.neighbors ?? [];
-          return neighbourhood.filter((cell) => cell.color === clue.color).length === clue.count;
+          const neighbourhood =
+            this.getCell(clue.row, clue.col)?.neighbors ?? [];
+          return (
+            neighbourhood.filter((cell) => cell.color === clue.color).length ===
+            clue.count
+          );
         });
+
+      this.cells.forEach((cell) => {
+        cell.color = null;
+      });
 
       // if not solved, put the clue back
       if (!solved) {
@@ -873,13 +903,11 @@ class NMosaic {
       if (!cell.included) continue;
 
       let worstClueColor = 0;
-      let worstClueCount = cell.neighbors.filter(
-        (it) => it.solutionColor === 0,
-      ).length - 5;
+      let worstClueCount =
+        cell.neighbors.filter((it) => it.solutionColor === 0).length - 5;
       for (let i = 1; i < this.BOARD_COLORS; i++) {
-        let nextClueCount = cell.neighbors.filter(
-          (it) => it.solutionColor === i,
-        ).length - 5;
+        let nextClueCount =
+          cell.neighbors.filter((it) => it.solutionColor === i).length - 5;
         if (Math.abs(nextClueCount) > Math.abs(worstClueCount)) {
           worstClueColor = i;
           worstClueCount = nextClueCount;

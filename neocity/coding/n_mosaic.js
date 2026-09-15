@@ -272,7 +272,7 @@
       const candidateBoard = [];
       for (let row = 0; row < nMosaic.BOARD_HEIGHT; row++) {
         candidateBoard.push([]);
-        for (let col = 0; col < nMosaic.BOARD_HEIGHT; col++) {
+        for (let col = 0; col < nMosaic.BOARD_WIDTH; col++) {
           const candidates = /* @__PURE__ */ new Set();
           for (let color = 0; color < nMosaic.BOARD_COLORS; color++) {
             candidates.add(color);
@@ -329,13 +329,7 @@
         const clueCell = nMosaic.getCell(clue.row, clue.col);
         nMosaic.clues.filter(
           (subClue) => Math.abs(subClue.col - clue.col) <= 2 && Math.abs(subClue.row - clue.row) <= 2
-        ).filter((subClue) => {
-          const clueArea = clueCell?.neighbors.filter(
-            (neighbour) => neighbour.color === null
-          ) ?? [];
-          const subClueArea = nMosaic.getCell(subClue.row, subClue.col)?.neighbors.filter((neighbour) => neighbour.color === null) ?? [];
-          return subClueArea.every((cell) => clueArea.includes(cell));
-        }).forEach((subClue) => {
+        ).forEach((subClue) => {
           const clueArea = clueCell?.neighbors.filter(
             (neighbour) => neighbour.color === null
           ) ?? [];
@@ -343,11 +337,12 @@
           const subClueArea = subClueCell?.neighbors.filter(
             (neighbour) => neighbour.color === null
           ) ?? [];
+          if (!subClueArea.every((cell) => clueArea.includes(cell))) return;
           const effectiveClueValue = clue.count - (clueCell?.neighbors.filter(
             (neighbour) => neighbour.color === clue.color
           )?.length ?? 0);
           const effectiveSubClueValue = subClue.count - (subClueCell?.neighbors.filter(
-            (neighbour) => neighbour.color === null
+            (neighbour) => neighbour.color === subClue.color
           )?.length ?? 0);
           const clueExclusiveArea = clueArea.filter(
             (cell) => !subClueArea.includes(cell)
@@ -378,10 +373,13 @@
           const clueBRegion = nMosaic.getCell(clueB.row, clueB.col)?.neighbors ?? [];
           const clueAOpen = clueARegion.filter((cell) => cell.color === null);
           const clueBOpen = clueBRegion.filter((cell) => cell.color === null);
-          const intersection = clueAOpen.filter((cell) => clueBOpen.includes(cell));
+          const intersection = clueAOpen.filter(
+            (cell) => clueBOpen.includes(cell)
+          );
           const aMinusB = clueAOpen.filter((cell) => !clueBOpen.includes(cell));
           const bMinusA = clueBOpen.filter((cell) => !clueAOpen.includes(cell));
-          if (!(intersection.length > 0 && aMinusB.length > 0 && bMinusA.length > 0)) return;
+          if (!(intersection.length > 0 && aMinusB.length > 0 && bMinusA.length > 0))
+            return;
           const effectiveClueA = clueA.count - clueARegion.filter((cell) => cell.color === clueA.color).length;
           const effectiveClueB = clueB.count - clueBRegion.filter((cell) => cell.color === clueB.color).length;
           if (clueA.color !== clueB.color && effectiveClueA + effectiveClueB === clueAOpen.length + bMinusA.length) {
@@ -454,21 +452,27 @@
           });
         }
         tries++;
-        console.log("tries:", tries);
-      } while (!this.cells.every((cell) => cell.color !== null) || !this.clues.every((clue) => {
+        if (tries > 200) break;
+        this.cells.forEach((cell) => {
+          cell.color = null;
+        });
+      } while (!this.cells.every((cell) => cell.color !== null || !cell.included) || !this.clues.every((clue) => {
         const neighbourhood = this.getCell(clue.row, clue.col)?.neighbors ?? [];
         return neighbourhood.filter((cell) => cell.color === clue.color).length === clue.count;
       }));
-      console.log(`Found a solvable random pattern in ${tries} attempts`);
+      if (tries <= 200) {
+        console.log(`Found a solvable random pattern in ${tries} attempts`);
+      } else {
+        console.log(
+          `Failed to find a solvable random pattern in ${tries} attempts`
+        );
+      }
       this.clues.sort(() => Math.random() - 0.5);
       const maxAttempts = this.clues.length;
       let counter = 0;
       while (counter <= maxAttempts) {
         const removedClue = this.clues.shift();
         if (!removedClue) throw new Error("clues is empty");
-        this.cells.forEach((cell) => {
-          cell.color = null;
-        });
         counter++;
         let done = false;
         while (!done) {
@@ -479,9 +483,12 @@
             }
           });
         }
-        const solved = this.cells.every((cell) => cell.color !== null) && this.clues.every((clue) => {
+        const solved = this.cells.every((cell) => cell.color !== null || !cell.included) && this.clues.every((clue) => {
           const neighbourhood = this.getCell(clue.row, clue.col)?.neighbors ?? [];
           return neighbourhood.filter((cell) => cell.color === clue.color).length === clue.count;
+        });
+        this.cells.forEach((cell) => {
+          cell.color = null;
         });
         if (!solved) {
           this.clues.push(removedClue);
@@ -609,13 +616,9 @@
       for (const cell of this.cells) {
         if (!cell.included) continue;
         let worstClueColor = 0;
-        let worstClueCount = cell.neighbors.filter(
-          (it) => it.solutionColor === 0
-        ).length - 5;
+        let worstClueCount = cell.neighbors.filter((it) => it.solutionColor === 0).length - 5;
         for (let i = 1; i < this.BOARD_COLORS; i++) {
-          let nextClueCount = cell.neighbors.filter(
-            (it) => it.solutionColor === i
-          ).length - 5;
+          let nextClueCount = cell.neighbors.filter((it) => it.solutionColor === i).length - 5;
           if (Math.abs(nextClueCount) > Math.abs(worstClueCount)) {
             worstClueColor = i;
             worstClueCount = nextClueCount;
