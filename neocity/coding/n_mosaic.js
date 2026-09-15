@@ -385,11 +385,14 @@
           if (clueA.color !== clueB.color && effectiveClueA + effectiveClueB === clueAOpen.length + bMinusA.length) {
             aMinusB.forEach((cell) => cell.color = clueA.color);
             bMinusA.forEach((cell) => cell.color = clueB.color);
+            applied++;
           } else if (clueA.color === clueB.color) {
             if (effectiveClueA - aMinusB.length === effectiveClueB) {
               aMinusB.forEach((cell) => cell.color = clueA.color);
+              applied++;
             } else if (effectiveClueB - bMinusA.length === effectiveClueA) {
               bMinusA.forEach((cell) => cell.color = clueB.color);
+              applied++;
             }
           }
         });
@@ -436,30 +439,35 @@
         if (!applied) break;
       }
     }
-    backwardPuzzleGenerator(techniqueSolvers) {
-      console.log("technique solvers:", techniqueSolvers.length);
-      let tries = 0;
-      do {
-        this.generateRandomPuzzle();
-        console.log("random puzzle");
-        let done = false;
-        while (!done) {
-          done = true;
-          techniqueSolvers.forEach((solver) => {
-            while (solver(this) > 0) {
-              done = false;
-            }
-          });
-        }
-        tries++;
-        if (tries > 200) break;
-        this.cells.forEach((cell) => {
-          cell.color = null;
+    async techniqueSolve(techniqueSolvers) {
+      let done = false;
+      while (!done) {
+        done = true;
+        techniqueSolvers.forEach((solver) => {
+          while (solver(this) > 0) {
+            done = false;
+          }
         });
-      } while (!this.cells.every((cell) => cell.color !== null || !cell.included) || !this.clues.every((clue) => {
+      }
+      const solved = this.cells.every((cell) => cell.color !== null || !cell.included) && this.clues.every((clue) => {
         const neighbourhood = this.getCell(clue.row, clue.col)?.neighbors ?? [];
         return neighbourhood.filter((cell) => cell.color === clue.color).length === clue.count;
-      }));
+      });
+      this.cells.forEach((cell) => {
+        cell.color = null;
+      });
+      return solved;
+    }
+    async backwardPuzzleGenerator(solve) {
+      let tries = 0;
+      let solvable = false;
+      while (!solvable) {
+        this.generateRandomPuzzle();
+        console.log("random puzzle");
+        solvable = await solve();
+        tries++;
+        if (tries > 200) break;
+      }
       if (tries <= 200) {
         console.log(`Found a solvable random pattern in ${tries} attempts`);
       } else {
@@ -474,22 +482,7 @@
         const removedClue = this.clues.shift();
         if (!removedClue) throw new Error("clues is empty");
         counter++;
-        let done = false;
-        while (!done) {
-          done = true;
-          techniqueSolvers.forEach(async (solver) => {
-            while (solver(this) > 0) {
-              done = false;
-            }
-          });
-        }
-        const solved = this.cells.every((cell) => cell.color !== null || !cell.included) && this.clues.every((clue) => {
-          const neighbourhood = this.getCell(clue.row, clue.col)?.neighbors ?? [];
-          return neighbourhood.filter((cell) => cell.color === clue.color).length === clue.count;
-        });
-        this.cells.forEach((cell) => {
-          cell.color = null;
-        });
+        const solved = await solve();
         if (!solved) {
           this.clues.push(removedClue);
         }
@@ -510,96 +503,45 @@
           break;
         case "easy backward":
           console.log("easy backward");
-          this.backwardPuzzleGenerator([
+          this.backwardPuzzleGenerator(() => this.techniqueSolve([
             (nMosaic) => this.solveSimpleRemainder(nMosaic),
             (nMosaic) => this.solveLastCandidate(nMosaic)
-          ]);
+          ]));
           break;
         case "medium backward":
           console.log("medium backward");
-          this.backwardPuzzleGenerator([
+          this.backwardPuzzleGenerator(() => this.techniqueSolve([
             (nMosaic) => this.solveSimpleRemainder(nMosaic),
             (nMosaic) => this.solveLastCandidate(nMosaic),
             (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
             (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic)
-          ]);
+          ]));
           break;
         case "hard backward":
-          this.backwardPuzzleGenerator([
+          this.backwardPuzzleGenerator(() => this.techniqueSolve([
             (nMosaic) => this.solveSimpleRemainder(nMosaic),
             (nMosaic) => this.solveLastCandidate(nMosaic),
             (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
             (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
             (nMosaic) => this.solveTotalNeighbourhoodSum(nMosaic)
-          ]);
+          ]));
           break;
         case "sat backward":
-          const maxAttempts = 10;
-          let allClues = [];
-          let attempts = 0;
-          do {
-            for (const cell of this.cells) {
-              if (!cell.included) continue;
-              cell.solutionColor = Math.floor(Math.random() * this.BOARD_COLORS);
-            }
-            allClues = [];
-            for (const cell of this.cells) {
-              if (!cell.included) continue;
-              for (let k = 0; k < this.BOARD_COLORS; k++) {
-                const count = cell.neighbors.filter(
-                  (neighbor) => neighbor.solutionColor === k
-                ).length;
-                allClues.push(new NMosaicClue(cell.row, cell.col, k, count));
-              }
-            }
-            attempts++;
-          } while (!await this.satHasUniqueSolution(allClues) && attempts < maxAttempts);
-          if (attempts >= maxAttempts) {
-            console.warn(
-              `no unique solution after ${maxAttempts} attempts. Try more colors or a larger board.`
-            );
-          }
-          const retainedClues = allClues.slice();
-          const cluesPerCell = /* @__PURE__ */ new Map();
-          for (const clue of allClues) {
-            const key = `${clue.row},${clue.col}`;
-            cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) + 1);
-          }
-          const shuffledPhase1 = allClues.slice().sort(() => Math.random() - 0.5);
-          for (const clue of shuffledPhase1) {
-            const key = `${clue.row},${clue.col}`;
-            if ((cluesPerCell.get(key) ?? 0) <= 1) continue;
-            const index = retainedClues.indexOf(clue);
-            if (index === -1) continue;
-            retainedClues.splice(index, 1);
-            if (await this.satHasUniqueSolution(retainedClues)) {
-              cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
-            } else {
-              retainedClues.splice(index, 0, clue);
-            }
-          }
-          let progress = true;
-          while (progress) {
-            progress = false;
-            const shuffledPhase2 = retainedClues.slice().sort(() => Math.random() - 0.5);
-            for (const clue of shuffledPhase2) {
-              const key = `${clue.row},${clue.col}`;
-              if ((cluesPerCell.get(key) ?? 0) === 0) continue;
-              const index = retainedClues.indexOf(clue);
-              if (index === -1) continue;
-              retainedClues.splice(index, 1);
-              if (await this.satHasUniqueSolution(retainedClues)) {
-                cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
-                progress = true;
-              } else {
-                retainedClues.splice(index, 0, clue);
-              }
-            }
-          }
-          this.clues = retainedClues;
+          this.backwardPuzzleGenerator(() => this.satHasUniqueSolution(this.clues));
           break;
         case "random":
           this.generateRandomPuzzle();
+          this.cells.forEach((cell) => {
+            const localClues = this.clues.filter((clue) => clue.row === cell.row && clue.col === cell.col);
+            let worstClue = localClues[0];
+            localClues.forEach((clue) => {
+              if (Math.abs(clue.count - 5) < Math.abs(worstClue.count - 5)) {
+                worstClue = clue;
+              }
+            });
+            const worstClueIndex = this.clues.findIndex((clue) => clue === worstClue);
+            this.clues.splice(worstClueIndex, 1);
+          });
           break;
         default:
           console.log("Unrecognized Difficulty Option");
@@ -615,15 +557,6 @@
       this.clues = [];
       for (const cell of this.cells) {
         if (!cell.included) continue;
-        let worstClueColor = 0;
-        let worstClueCount = cell.neighbors.filter((it) => it.solutionColor === 0).length - 5;
-        for (let i = 1; i < this.BOARD_COLORS; i++) {
-          let nextClueCount = cell.neighbors.filter((it) => it.solutionColor === i).length - 5;
-          if (Math.abs(nextClueCount) > Math.abs(worstClueCount)) {
-            worstClueColor = i;
-            worstClueCount = nextClueCount;
-          }
-        }
         for (let c = 0; c < this.BOARD_COLORS; c++) {
           let clueCount = cell.neighbors.filter(
             (it) => it.solutionColor === c

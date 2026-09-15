@@ -7,7 +7,7 @@
 // 1. Update the SAT Solver with a deterministic branching heuristic and run it in a Web Worker, if it's still too slow move to WASM
 //  1a. Experiment with SAT difficulty sliders (Decisions/Conflicts)
 // 2. Make a Solver that uses the solution techniques
-//  2a. Get data on how often randomly generated puzzles can be solved with only certain techniques
+//  2a. Get data on how often randomly generated puzzles can be solved with only certain techniques 10-20% for easy or medium
 // 3. Try to sort solving techniques by difficulty using the SAT Solver difficulty metric
 // 4. Add a Hint system using the technique based solver
 
@@ -669,41 +669,46 @@ class NMosaic {
     }
   }
 
-  backwardPuzzleGenerator(
-    techniqueSolvers: ((nMosaic: NMosaic) => number)[],
-  ): void {
-    console.log("technique solvers:", techniqueSolvers.length);
-    let tries = 0;
-    do {
-      this.generateRandomPuzzle();
-      console.log("random puzzle");
-
-      let done = false;
-      while (!done) {
-        done = true;
-        techniqueSolvers.forEach((solver) => {
-          while (solver(this) > 0) {
-            done = false;
-          }
-        });
-      }
-      tries++;
-
-      if (tries > 200) break;
-      // console.log(`Filled Cells: ${this.cells.filter((cell) => cell.color !== null).length} / ${this.cells.filter((cell) => cell.included)}`);
-      this.cells.forEach((cell) => {
-        cell.color = null;
+  async techniqueSolve(techniqueSolvers: ((nMosaic: NMosaic) => number)[]): Promise<boolean> {
+    let done = false;
+    while (!done) {
+      done = true;
+      techniqueSolvers.forEach((solver) => {
+        while (solver(this) > 0) {
+          done = false;
+        }
       });
-    } while (
-      !this.cells.every((cell) => cell.color !== null || !cell.included) ||
-      !this.clues.every((clue) => {
+    }
+
+    const solved = this.cells.every((cell) => cell.color !== null || !cell.included) &&
+      this.clues.every((clue) => {
         const neighbourhood = this.getCell(clue.row, clue.col)?.neighbors ?? [];
         return (
           neighbourhood.filter((cell) => cell.color === clue.color).length ===
           clue.count
         );
-      })
-    );
+      });
+
+    this.cells.forEach((cell) => {
+      cell.color = null;
+    });
+
+    return solved;
+  }
+
+  async backwardPuzzleGenerator(
+    solve: () => Promise<boolean>,
+  ): Promise<void> {
+    let tries = 0;
+    let solvable = false;
+    while (!solvable) {
+      this.generateRandomPuzzle();
+      console.log("random puzzle");
+      solvable = await solve();
+
+      tries++;
+      if (tries > 200) break;
+    }
 
     if (tries <= 200) {
       console.log(`Found a solvable random pattern in ${tries} attempts`);
@@ -720,37 +725,10 @@ class NMosaic {
     while (counter <= maxAttempts) {
       const removedClue = this.clues.shift();
       if (!removedClue) throw new Error("clues is empty");
-
       counter++;
 
-      // run the solvers until they are done
-      let done = false;
-      while (!done) {
-        done = true;
-        techniqueSolvers.forEach(async (solver) => {
-          while (solver(this) > 0) {
-            done = false;
-          }
-        });
-      }
+      const solved = await solve();
 
-      // check if the puzzle is solved
-      const solved =
-        this.cells.every((cell) => cell.color !== null || !cell.included) &&
-        this.clues.every((clue) => {
-          const neighbourhood =
-            this.getCell(clue.row, clue.col)?.neighbors ?? [];
-          return (
-            neighbourhood.filter((cell) => cell.color === clue.color).length ===
-            clue.count
-          );
-        });
-
-      this.cells.forEach((cell) => {
-        cell.color = null;
-      });
-
-      // if not solved, put the clue back
       if (!solved) {
         this.clues.push(removedClue);
       }
@@ -772,118 +750,47 @@ class NMosaic {
         break;
       case "easy backward":
         console.log("easy backward");
-        this.backwardPuzzleGenerator([
+
+        this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
           (nMosaic) => this.solveLastCandidate(nMosaic),
-        ]);
+        ]));
         break;
       case "medium backward":
         console.log("medium backward");
-        this.backwardPuzzleGenerator([
+        this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
           (nMosaic) => this.solveLastCandidate(nMosaic),
           (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
           (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
-        ]);
+        ]));
         break;
       case "hard backward":
-        this.backwardPuzzleGenerator([
+        this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
           (nMosaic) => this.solveLastCandidate(nMosaic),
           (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
           (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
           (nMosaic) => this.solveTotalNeighbourhoodSum(nMosaic),
-        ]);
+        ]));
         break;
       case "sat backward":
-        // SAT difficulty: use SAT solver to generate a uniquely solvable puzzle
-        const maxAttempts = 10;
-        let allClues: NMosaicClue[] = [];
-        let attempts = 0;
-        do {
-          for (const cell of this.cells) {
-            if (!cell.included) continue;
-            cell.solutionColor = Math.floor(Math.random() * this.BOARD_COLORS);
-          }
-
-          allClues = [];
-          for (const cell of this.cells) {
-            if (!cell.included) continue;
-            for (let k = 0; k < this.BOARD_COLORS; k++) {
-              const count = cell.neighbors.filter(
-                (neighbor) => neighbor.solutionColor === k,
-              ).length;
-              allClues.push(new NMosaicClue(cell.row, cell.col, k, count));
-            }
-          }
-
-          attempts++;
-        } while (
-          !(await this.satHasUniqueSolution(allClues)) &&
-          attempts < maxAttempts
-        );
-
-        if (attempts >= maxAttempts) {
-          console.warn(
-            `no unique solution after ${maxAttempts} attempts. Try more colors or a larger board.`,
-          );
-        }
-
-        // Phase 1: Remove clues from cells with multiple clues,
-        //    reducing to at most one clue per cell.
-        const retainedClues = allClues.slice();
-        const cluesPerCell = new Map<string, number>();
-        for (const clue of allClues) {
-          const key = `${clue.row},${clue.col}`;
-          cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) + 1);
-        }
-
-        const shuffledPhase1 = allClues.slice().sort(() => Math.random() - 0.5);
-        for (const clue of shuffledPhase1) {
-          const key = `${clue.row},${clue.col}`;
-          if ((cluesPerCell.get(key) ?? 0) <= 1) continue;
-
-          const index = retainedClues.indexOf(clue);
-          if (index === -1) continue;
-          retainedClues.splice(index, 1);
-
-          if (await this.satHasUniqueSolution(retainedClues)) {
-            cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
-          } else {
-            retainedClues.splice(index, 0, clue);
-          }
-        }
-
-        // Phase 2: Try to remove remaining clues (cells with exactly
-        //    one clue) until no more can be removed without losing
-        //    unique solvability.  Some cells may end up with 0 clues.
-        let progress = true;
-        while (progress) {
-          progress = false;
-          const shuffledPhase2 = retainedClues
-            .slice()
-            .sort(() => Math.random() - 0.5);
-          for (const clue of shuffledPhase2) {
-            const key = `${clue.row},${clue.col}`;
-            if ((cluesPerCell.get(key) ?? 0) === 0) continue;
-
-            const index = retainedClues.indexOf(clue);
-            if (index === -1) continue;
-            retainedClues.splice(index, 1);
-
-            if (await this.satHasUniqueSolution(retainedClues)) {
-              cluesPerCell.set(key, (cluesPerCell.get(key) ?? 0) - 1);
-              progress = true;
-            } else {
-              retainedClues.splice(index, 0, clue);
-            }
-          }
-        }
-
-        this.clues = retainedClues;
+        this.backwardPuzzleGenerator(() => this.satHasUniqueSolution(this.clues));
         break;
       case "random":
         this.generateRandomPuzzle();
+
+        this.cells.forEach((cell) => {
+          const localClues = this.clues.filter((clue) => clue.row === cell.row && clue.col === cell.col);
+          let worstClue = localClues[0];
+          localClues.forEach((clue) => {
+            if (Math.abs(clue.count - 5) < Math.abs(worstClue.count - 5)) {
+              worstClue = clue;
+            }
+          })
+          const worstClueIndex = this.clues.findIndex((clue) => clue === worstClue);
+          this.clues.splice(worstClueIndex, 1);
+        });
         break;
       default:
         console.log("Unrecognized Difficulty Option");
@@ -902,20 +809,7 @@ class NMosaic {
     for (const cell of this.cells) {
       if (!cell.included) continue;
 
-      let worstClueColor = 0;
-      let worstClueCount =
-        cell.neighbors.filter((it) => it.solutionColor === 0).length - 5;
-      for (let i = 1; i < this.BOARD_COLORS; i++) {
-        let nextClueCount =
-          cell.neighbors.filter((it) => it.solutionColor === i).length - 5;
-        if (Math.abs(nextClueCount) > Math.abs(worstClueCount)) {
-          worstClueColor = i;
-          worstClueCount = nextClueCount;
-        }
-      }
-
       for (let c = 0; c < this.BOARD_COLORS; c++) {
-        // if (c === worstClueColor) continue;
         let clueCount = cell.neighbors.filter(
           (it) => it.solutionColor === c,
         ).length;
