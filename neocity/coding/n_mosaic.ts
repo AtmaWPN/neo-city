@@ -405,7 +405,7 @@ class NMosaic {
       }
     });
 
-    console.log("Simple Remainder:", applied);
+    // console.log("Simple Remainder:", applied);
     return applied;
   }
 
@@ -460,7 +460,7 @@ class NMosaic {
       }
     }
 
-    console.log("Last Candidate:", applied);
+    // console.log("Last Candidate:", applied);
     return applied;
   }
 
@@ -483,7 +483,7 @@ class NMosaic {
       }
     });
 
-    console.log("Simple Candidate Remainder:", applied);
+    // console.log("Simple Candidate Remainder:", applied);
     return applied;
   }
 
@@ -547,7 +547,7 @@ class NMosaic {
         });
     });
 
-    console.log("Simple Subset Remainder:", applied);
+    // console.log("Simple Subset Remainder:", applied);
     return applied;
   }
 
@@ -703,14 +703,13 @@ class NMosaic {
     let solvable = false;
     while (!solvable) {
       this.generateRandomPuzzle();
-      console.log("random puzzle");
       solvable = await solve();
 
       tries++;
-      if (tries > 200) break;
+      if (tries > 100000) break;
     }
 
-    if (tries <= 200) {
+    if (tries <= 100000) {
       console.log(`Found a solvable random pattern in ${tries} attempts`);
     } else {
       console.log(
@@ -753,7 +752,6 @@ class NMosaic {
 
         this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
-          (nMosaic) => this.solveLastCandidate(nMosaic),
         ]));
         break;
       case "medium backward":
@@ -762,7 +760,6 @@ class NMosaic {
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
           (nMosaic) => this.solveLastCandidate(nMosaic),
           (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
-          (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
         ]));
         break;
       case "hard backward":
@@ -818,8 +815,6 @@ class NMosaic {
         this.clues.push(clue);
       }
     }
-
-    console.log(this.clues);
   }
 
   // the neighbours in this function have nothing to do with a cell's neighbourhood

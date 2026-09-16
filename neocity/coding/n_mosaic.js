@@ -265,7 +265,6 @@
           applied++;
         }
       });
-      console.log("Simple Remainder:", applied);
       return applied;
     }
     buildCandidateBoard(nMosaic) {
@@ -303,7 +302,6 @@
           applied++;
         }
       }
-      console.log("Last Candidate:", applied);
       return applied;
     }
     solveSimpleCandidateRemainder(nMosaic) {
@@ -320,7 +318,6 @@
           applied++;
         }
       });
-      console.log("Simple Candidate Remainder:", applied);
       return applied;
     }
     solveSimpleSubsetRemainder(nMosaic) {
@@ -360,7 +357,6 @@
           }
         });
       });
-      console.log("Simple Subset Remainder:", applied);
       return applied;
     }
     solveTotalNeighbourhoodSum(nMosaic) {
@@ -463,12 +459,11 @@
       let solvable = false;
       while (!solvable) {
         this.generateRandomPuzzle();
-        console.log("random puzzle");
         solvable = await solve();
         tries++;
-        if (tries > 200) break;
+        if (tries > 1e5) break;
       }
-      if (tries <= 200) {
+      if (tries <= 1e5) {
         console.log(`Found a solvable random pattern in ${tries} attempts`);
       } else {
         console.log(
@@ -504,8 +499,7 @@
         case "easy backward":
           console.log("easy backward");
           this.backwardPuzzleGenerator(() => this.techniqueSolve([
-            (nMosaic) => this.solveSimpleRemainder(nMosaic),
-            (nMosaic) => this.solveLastCandidate(nMosaic)
+            (nMosaic) => this.solveSimpleRemainder(nMosaic)
           ]));
           break;
         case "medium backward":
@@ -513,8 +507,7 @@
           this.backwardPuzzleGenerator(() => this.techniqueSolve([
             (nMosaic) => this.solveSimpleRemainder(nMosaic),
             (nMosaic) => this.solveLastCandidate(nMosaic),
-            (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
-            (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic)
+            (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic)
           ]));
           break;
         case "hard backward":
@@ -565,7 +558,6 @@
           this.clues.push(clue);
         }
       }
-      console.log(this.clues);
     }
     // the neighbours in this function have nothing to do with a cell's neighbourhood
     // they are just for generating the board shape
