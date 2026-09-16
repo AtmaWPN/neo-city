@@ -149,7 +149,7 @@ class NMosaic {
     );
   }
 
-  regenerate(
+  async regenerate(
     height: number = 9,
     width: number = 9,
     colors: number = 2,
@@ -178,7 +178,7 @@ class NMosaic {
 
     this.generateBoardShape();
 
-    this.puzzleGeneratorFactory();
+    await this.puzzleGeneratorFactory();
   }
 
   applyRecipe(recipe: Recipe): void {
@@ -738,10 +738,10 @@ class NMosaic {
     console.log(this);
     switch (this.BOARD_DIFFICULTY) {
       case "easy forward":
-        this.generateRecipePuzzle([() => this.getSimpleRemainderRecipes()]);
+        await this.generateRecipePuzzle([() => this.getSimpleRemainderRecipes()]);
         break;
       case "hard forward":
-        this.generateRecipePuzzle([
+        await this.generateRecipePuzzle([
           () => this.getSimpleRemainderRecipes(),
           () => this.getTotalNeighbourhoodSumRecipes(),
           () => this.getExcludedDifferenceRecipes(),
@@ -750,20 +750,20 @@ class NMosaic {
       case "easy backward":
         console.log("easy backward");
 
-        this.backwardPuzzleGenerator(() => this.techniqueSolve([
+        await this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
         ]));
         break;
       case "medium backward":
         console.log("medium backward");
-        this.backwardPuzzleGenerator(() => this.techniqueSolve([
+        await this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
           (nMosaic) => this.solveLastCandidate(nMosaic),
           (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
         ]));
         break;
       case "hard backward":
-        this.backwardPuzzleGenerator(() => this.techniqueSolve([
+        await this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
           (nMosaic) => this.solveLastCandidate(nMosaic),
           (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
@@ -772,7 +772,7 @@ class NMosaic {
         ]));
         break;
       case "sat backward":
-        this.backwardPuzzleGenerator(() => this.satHasUniqueSolution(this.clues));
+        await this.backwardPuzzleGenerator(() => this.satHasUniqueSolution(this.clues));
         break;
       case "random":
         this.generateRandomPuzzle();
