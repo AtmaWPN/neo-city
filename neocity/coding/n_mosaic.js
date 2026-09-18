@@ -67,6 +67,12 @@
     puzzleComplete = false;
     selectedColor = 0;
     pencilMode = false;
+    // Instrumentation for the test dashboard (n_mosaic_test.html).
+    satStats = [];
+    techniqueCounts = {};
+    randomPuzzleTries = 0;
+    randomPatternFound = false;
+    recipesApplied = 0;
     constructor(height = 9, width = 9, colors = 2, fraction = 1, difficulty = "random", canvas, paletteCanvas) {
       this.ctx = canvas.getContext("2d");
       this.paletteCtx = paletteCanvas.getContext("2d");
@@ -89,7 +95,7 @@
         this.BOARD_DIFFICULTY
       );
     }
-    regenerate(height = 9, width = 9, colors = 2, fraction = 0.5, difficulty = "random") {
+    async regenerate(height = 9, width = 9, colors = 2, fraction = 0.5, difficulty = "random") {
       this.BOARD_HEIGHT = height;
       this.BOARD_WIDTH = width;
       this.BOARD_COLORS = colors;
@@ -97,6 +103,11 @@
       this.BOARD_DIFFICULTY = difficulty;
       this.selectedColor = 0;
       this.pencilMode = false;
+      this.satStats = [];
+      this.techniqueCounts = {};
+      this.randomPuzzleTries = 0;
+      this.randomPatternFound = false;
+      this.recipesApplied = 0;
       this.cells = [];
       this.clues = [];
       this.puzzleComplete = false;
@@ -108,7 +119,7 @@
         }
       }
       this.generateBoardShape();
-      this.puzzleGeneratorFactory();
+      await this.puzzleGeneratorFactory();
     }
     applyRecipe(recipe) {
       for (const item of recipe.toColor) {
@@ -265,6 +276,7 @@
           applied++;
         }
       });
+      nMosaic.techniqueCounts["SimpleRemainder"] = (nMosaic.techniqueCounts["SimpleRemainder"] ?? 0) + applied;
       return applied;
     }
     buildCandidateBoard(nMosaic) {
@@ -302,6 +314,7 @@
           applied++;
         }
       }
+      nMosaic.techniqueCounts["LastCandidate"] = (nMosaic.techniqueCounts["LastCandidate"] ?? 0) + applied;
       return applied;
     }
     solveSimpleCandidateRemainder(nMosaic) {
@@ -318,6 +331,7 @@
           applied++;
         }
       });
+      nMosaic.techniqueCounts["SimpleCandidateRemainder"] = (nMosaic.techniqueCounts["SimpleCandidateRemainder"] ?? 0) + applied;
       return applied;
     }
     solveSimpleSubsetRemainder(nMosaic) {
@@ -357,6 +371,7 @@
           }
         });
       });
+      nMosaic.techniqueCounts["SimpleSubsetRemainder"] = (nMosaic.techniqueCounts["SimpleSubsetRemainder"] ?? 0) + applied;
       return applied;
     }
     solveTotalNeighbourhoodSum(nMosaic) {
@@ -393,6 +408,7 @@
           }
         });
       });
+      nMosaic.techniqueCounts["TotalNeighbourhoodSum"] = (nMosaic.techniqueCounts["TotalNeighbourhoodSum"] ?? 0) + applied;
       return applied;
     }
     async generateRecipePuzzle(recipeGenerators) {
@@ -425,6 +441,7 @@
           this.applyRecipe(recipe);
           if (await this.satIsConsistent(this.clues)) {
             applied = true;
+            this.recipesApplied += recipe.toClue.length;
             break;
           }
           this.clues = savedClues;
@@ -470,6 +487,8 @@
           `Failed to find a solvable random pattern in ${tries} attempts`
         );
       }
+      this.randomPuzzleTries = tries;
+      this.randomPatternFound = solvable;
       this.clues.sort(() => Math.random() - 0.5);
       const maxAttempts = this.clues.length;
       let counter = 0;
@@ -484,34 +503,31 @@
       }
     }
     async puzzleGeneratorFactory() {
-      console.log(this);
       switch (this.BOARD_DIFFICULTY) {
         case "easy forward":
-          this.generateRecipePuzzle([() => this.getSimpleRemainderRecipes()]);
+          await this.generateRecipePuzzle([() => this.getSimpleRemainderRecipes()]);
           break;
         case "hard forward":
-          this.generateRecipePuzzle([
+          await this.generateRecipePuzzle([
             () => this.getSimpleRemainderRecipes(),
             () => this.getTotalNeighbourhoodSumRecipes(),
             () => this.getExcludedDifferenceRecipes()
           ]);
           break;
         case "easy backward":
-          console.log("easy backward");
-          this.backwardPuzzleGenerator(() => this.techniqueSolve([
+          await this.backwardPuzzleGenerator(() => this.techniqueSolve([
             (nMosaic) => this.solveSimpleRemainder(nMosaic)
           ]));
           break;
         case "medium backward":
-          console.log("medium backward");
-          this.backwardPuzzleGenerator(() => this.techniqueSolve([
+          await this.backwardPuzzleGenerator(() => this.techniqueSolve([
             (nMosaic) => this.solveSimpleRemainder(nMosaic),
             (nMosaic) => this.solveLastCandidate(nMosaic),
             (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic)
           ]));
           break;
         case "hard backward":
-          this.backwardPuzzleGenerator(() => this.techniqueSolve([
+          await this.backwardPuzzleGenerator(() => this.techniqueSolve([
             (nMosaic) => this.solveSimpleRemainder(nMosaic),
             (nMosaic) => this.solveLastCandidate(nMosaic),
             (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
@@ -520,15 +536,18 @@
           ]));
           break;
         case "sat backward":
-          this.backwardPuzzleGenerator(() => this.satHasUniqueSolution(this.clues));
+          await this.backwardPuzzleGenerator(() => this.satHasUniqueSolution(this.clues));
           break;
         case "random":
           this.generateRandomPuzzle();
           this.cells.forEach((cell) => {
-            const localClues = this.clues.filter((clue) => clue.row === cell.row && clue.col === cell.col);
+            const localClues = this.clues.filter(
+              (clue) => clue.row === cell.row && clue.col === cell.col
+            );
+            if (localClues.length === 0) return;
             let worstClue = localClues[0];
             localClues.forEach((clue) => {
-              if (Math.abs(clue.count - 5) < Math.abs(worstClue.count - 5)) {
+              if (Math.abs(clue.count - 4) < Math.abs(worstClue.count - 4)) {
                 worstClue = clue;
               }
             });
@@ -641,8 +660,19 @@
       }
       const totalVars = varCache.last;
       const result = await satSolveAsync(totalVars, clauses);
-      console.log(result);
+      this.recordSatStats("isConsistent", result);
       return result.SAT;
+    }
+    recordSatStats(phase, result) {
+      const stats = result.stats ? {
+        totalDecisions: result.stats.totalDecisions,
+        totalConflicts: result.stats.totalConflicts,
+        totalPropagations: result.stats.totalPropagations,
+        totalLearnts: result.stats.totalLearnts,
+        maxDecisionLevel: result.stats.maxDecisionLevel,
+        maxPropagationDepth: result.stats.maxPropagationDepth
+      } : {};
+      this.satStats.push({ phase, SAT: result.SAT, stats });
     }
     // ─── SAT encoding & solving ─────────────────────────────────────────
     /** Maps (row, col, color) to a 1-based SAT variable id. */
@@ -679,7 +709,7 @@
       }
       const totalVars = varCache.last;
       const validSolution = await satSolveAsync(totalVars, clauses);
-      console.log(validSolution);
+      this.recordSatStats("validSolution", validSolution);
       if (!validSolution.SAT) return false;
       const blockingClause = [];
       for (const cell of this.cells) {
@@ -688,7 +718,7 @@
       }
       clauses.push(blockingClause);
       const uniqueSolution = await satSolveAsync(totalVars, clauses);
-      console.log(uniqueSolution);
+      this.recordSatStats("uniqueSolution", uniqueSolution);
       return !uniqueSolution.SAT;
     }
     drawBackground() {
@@ -1106,5 +1136,13 @@
     }
     requestAnimationFrame(gameLoop);
   }
-  nMosaicMain();
+  if (typeof document !== "undefined" && typeof document.getElementById("n_mosaic_board") !== "undefined" && document.getElementById("n_mosaic_board") !== null) {
+    nMosaicMain();
+  }
+  if (typeof window !== "undefined") {
+    const exposed = window;
+    exposed.NMosaic = NMosaic;
+    exposed.NMosaicCell = NMosaicCell;
+    exposed.NMosaicClue = NMosaicClue;
+  }
 })();

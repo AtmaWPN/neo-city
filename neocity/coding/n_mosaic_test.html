@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N-Mosaic Test Dashboard</title>
+    <link href="../style.css" rel="stylesheet" type="text/css" media="all">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+    <style>
+      .nmt-panel {
+        border: 1px solid var(--line, #444);
+        padding: 0.5em 0.9em 0.9em;
+        margin: 1em 0;
+        max-width: 71em;
+      }
+      .nmt-panel h4 { margin: 0.4em 0; }
+      .nmt-controls { display: flex; flex-wrap: wrap; gap: 0.6em 1.2em; align-items: baseline; }
+      .nmt-controls label { display: inline-flex; gap: 0.4em; align-items: baseline; }
+      .nmt-controls input[type=number] { width: 4.5em; }
+      .nmt-controls input[type=checkbox] { width: auto; }
+      .nmt-buttons { display: flex; flex-wrap: wrap; gap: 0.7em; margin-top: 0.6em; }
+      .nmt-buttons button { padding: 0.1em 0.3em; border: 1px solid var(--line, #444); }
+      #nmt_progress { color: var(--string, #ccc); }
+      #nmt_tablewrap { max-height: 26em; overflow: auto; margin-top: 0.6em; }
+      table { border-collapse: collapse; font-size: 13px; }
+      th, td { border: 1px solid var(--line, #444); padding: 1px 6px; text-align: right; white-space: nowrap; }
+      th { position: sticky; top: 0; background: var(--background, #111); }
+      td.l, th.l { text-align: left; }
+      tr.total td { border-top: 2px solid var(--function, #dcdcaa); }
+      #nmt_log {
+        border: 1px solid var(--line, #444);
+        min-height: 6em; max-height: 20em; overflow: auto;
+        padding: 0.4em; margin-top: 0.6em; white-space: pre-wrap;
+        font-size: 13px;
+      }
+      .nmt-status { color: var(--string, #ccc); margin-top: 0.5em; }
+      .nmt-warn { color: #ff8080; }
+    </style>
+  </head>
+  <body class="page">
+    <h3>N-Mosaic Test Dashboard</h3>
+    <p>Generate puzzles en masse and inspect generation internals, or drive the solving techniques on a single board by hand. No links to this page are exposed anywhere on the site.</p>
+
+    <div class="nmt-panel">
+      <h4>Board Parameters</h4>
+      <div class="nmt-controls">
+        <label>Width <input type="number" id="nmt_width" value="10" min="2" max="32"></label>
+        <label>Height <input type="number" id="nmt_height" value="10" min="2" max="32"></label>
+        <label>Colors <input type="number" id="nmt_colors" value="3" min="2" max="8"></label>
+        <label>Shape Fraction <input type="number" id="nmt_fraction" value="0.75" min="0.05" max="1.0" step="0.05"></label>
+        <label>Difficulty
+          <select id="nmt_difficulty">
+            <option value="easy forward">easy forward</option>
+            <option value="easy backward">easy backward</option>
+            <option value="medium backward">medium backward</option>
+            <option value="hard forward">hard forward</option>
+            <option value="hard backward">hard backward</option>
+            <option value="sat backward">sat backward</option>
+            <option value="random">random</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="nmt-panel">
+      <h4>Batch Generation</h4>
+      <div class="nmt-controls">
+        <label>Puzzles <input type="number" id="nmt_count" value="10" min="1" max="1000"></label>
+        <label><input type="checkbox" id="nmt_verify"> verify final puzzle with techniques (hard set)</label>
+      </div>
+      <div class="nmt-controls">
+        <span>Solve with:</span>
+        <label><input type="radio" name="nmt_method" id="nmt_method_techniques" value="techniques" checked> techniques</label>
+        <label><input type="radio" name="nmt_method" id="nmt_method_sat" value="sat"> SAT (unique solution)</label>
+      </div>
+      <div class="nmt-controls" id="nmt_technique_row">
+        <label><input type="checkbox" id="nmt_tech_SimpleRemainder" checked> Simple Remainder</label>
+        <label><input type="checkbox" id="nmt_tech_LastCandidate" checked> Last Candidate</label>
+        <label><input type="checkbox" id="nmt_tech_SimpleCandidateRemainder" checked> Simple Candidates Remainder</label>
+        <label><input type="checkbox" id="nmt_tech_SimpleSubsetRemainder"> Simple Subset Remainder</label>
+        <label><input type="checkbox" id="nmt_tech_TotalNeighbourhoodSum"> Total Neighbourhood Sum</label>
+      </div>
+      <div class="nmt-status nmt-warn" id="nmt_methodwarn"></div>
+      <div class="nmt-buttons">
+        <button id="nmt_start" class="function">Run Batch()</button>
+        <button id="nmt_cancel" class="function">Cancel()</button>
+        <button id="nmt_csv" class="function">Download CSV()</button>
+        <span id="nmt_progress"></span>
+      </div>
+      <div class="nmt-status" id="nmt_batchstatus"></div>
+      <div id="nmt_tablewrap">
+        <table id="nmt_table"></table>
+      </div>
+    </div>
+
+    <div class="nmt-panel">
+      <h4>Manual Sandbox</h4>
+      <div class="nmt-controls">
+        <label>Difficulty
+          <select id="nmt_manual_difficulty">
+            <option value="easy forward">easy forward</option>
+            <option value="easy backward">easy backward</option>
+            <option value="medium backward">medium backward</option>
+            <option value="hard forward">hard forward</option>
+            <option value="hard backward">hard backward</option>
+            <option value="sat backward">sat backward</option>
+            <option value="random">random</option>
+          </select>
+        </label>
+      </div>
+      <div class="nmt-buttons">
+        <button id="nmt_manual_generate" class="function">Generate()</button>
+        <button id="nmt_reset" class="function">Reset Guesses()</button>
+        <button id="nmt_solution" class="function">Show Solution()</button>
+      </div>
+      <div style="display: flex; gap: 4px; margin-top: 0.6em;">
+        <canvas id="nmt_board" width="576" height="576"></canvas>
+        <canvas id="nmt_palette" width="72" height="576"></canvas>
+      </div>
+      <h4 style="margin-top: 1em;">Apply Techniques</h4>
+      <div class="nmt-buttons">
+        <button data-tech="SimpleRemainder" class="function">Simple Remainder</button>
+        <button data-tech="LastCandidate" class="function">Last Candidate</button>
+        <button data-tech="SimpleCandidateRemainder" class="function">Simple Candidates Remainder</button>
+        <button data-tech="SimpleSubsetRemainder" class="function">Simple Subset Remainder</button>
+        <button data-tech="TotalNeighbourhoodSum" class="function">Total Neighbourhood Sum</button>
+        <button id="nmt_solveall" class="function">Solve All (hard set, fixpoint)</button>
+      </div>
+      <div class="nmt-status" id="nmt_manualstatus"></div>
+      <div id="nmt_log"></div>
+    </div>
+
+    <script src="../SATjs-master/SAT.js"></script>
+    <script src="../SATjs-master/SAT_worker.js"></script>
+    <script src="../SATjs-master/helpers.js"></script>
+    <script src="n_mosaic.js"></script>
+    <script src="n_mosaic_test.js"></script>
+  </body>
+</html>

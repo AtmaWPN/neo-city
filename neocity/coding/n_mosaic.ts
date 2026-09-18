@@ -116,6 +116,13 @@ class NMosaic {
   selectedColor: number = 0;
   pencilMode: boolean = false;
 
+  // Instrumentation for the test dashboard (n_mosaic_test.html).
+  satStats: Array<{ phase: string; SAT: boolean; stats: Record<string, number> }> = [];
+  techniqueCounts: Record<string, number> = {};
+  randomPuzzleTries: number = 0;
+  randomPatternFound: boolean = false;
+  recipesApplied: number = 0;
+
   constructor(
     height: number = 9,
     width: number = 9,
@@ -163,6 +170,12 @@ class NMosaic {
     this.BOARD_DIFFICULTY = difficulty;
     this.selectedColor = 0;
     this.pencilMode = false;
+
+    this.satStats = [];
+    this.techniqueCounts = {};
+    this.randomPuzzleTries = 0;
+    this.randomPatternFound = false;
+    this.recipesApplied = 0;
 
     this.cells = [];
     this.clues = [];
@@ -406,6 +419,8 @@ class NMosaic {
     });
 
     // console.log("Simple Remainder:", applied);
+    nMosaic.techniqueCounts["SimpleRemainder"] =
+      (nMosaic.techniqueCounts["SimpleRemainder"] ?? 0) + applied;
     return applied;
   }
 
@@ -461,6 +476,8 @@ class NMosaic {
     }
 
     // console.log("Last Candidate:", applied);
+    nMosaic.techniqueCounts["LastCandidate"] =
+      (nMosaic.techniqueCounts["LastCandidate"] ?? 0) + applied;
     return applied;
   }
 
@@ -484,6 +501,8 @@ class NMosaic {
     });
 
     // console.log("Simple Candidate Remainder:", applied);
+    nMosaic.techniqueCounts["SimpleCandidateRemainder"] =
+      (nMosaic.techniqueCounts["SimpleCandidateRemainder"] ?? 0) + applied;
     return applied;
   }
 
@@ -548,6 +567,8 @@ class NMosaic {
     });
 
     // console.log("Simple Subset Remainder:", applied);
+    nMosaic.techniqueCounts["SimpleSubsetRemainder"] =
+      (nMosaic.techniqueCounts["SimpleSubsetRemainder"] ?? 0) + applied;
     return applied;
   }
 
@@ -613,6 +634,8 @@ class NMosaic {
         });
     });
 
+    nMosaic.techniqueCounts["TotalNeighbourhoodSum"] =
+      (nMosaic.techniqueCounts["TotalNeighbourhoodSum"] ?? 0) + applied;
     return applied;
   }
 
@@ -655,6 +678,7 @@ class NMosaic {
         // Verify consistency with SAT solver
         if (await this.satIsConsistent(this.clues)) {
           applied = true;
+          this.recipesApplied += recipe.toClue.length;
           break;
         }
 
@@ -717,6 +741,9 @@ class NMosaic {
       );
     }
 
+    this.randomPuzzleTries = tries;
+    this.randomPatternFound = solvable;
+
     this.clues.sort(() => Math.random() - 0.5);
 
     const maxAttempts = this.clues.length;
@@ -735,7 +762,6 @@ class NMosaic {
   }
 
   async puzzleGeneratorFactory(): Promise<void> {
-    console.log(this);
     switch (this.BOARD_DIFFICULTY) {
       case "easy forward":
         await this.generateRecipePuzzle([() => this.getSimpleRemainderRecipes()]);
@@ -748,14 +774,11 @@ class NMosaic {
         ]);
         break;
       case "easy backward":
-        console.log("easy backward");
-
         await this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
         ]));
         break;
       case "medium backward":
-        console.log("medium backward");
         await this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
           (nMosaic) => this.solveLastCandidate(nMosaic),
@@ -778,13 +801,17 @@ class NMosaic {
         this.generateRandomPuzzle();
 
         this.cells.forEach((cell) => {
-          const localClues = this.clues.filter((clue) => clue.row === cell.row && clue.col === cell.col);
+          const localClues = this.clues.filter(
+            (clue) => clue.row === cell.row && clue.col === cell.col,
+          );
+          if (localClues.length === 0) return;
+
           let worstClue = localClues[0];
           localClues.forEach((clue) => {
-            if (Math.abs(clue.count - 5) < Math.abs(worstClue.count - 5)) {
+            if (Math.abs(clue.count - 4) < Math.abs(worstClue.count - 4)) {
               worstClue = clue;
             }
-          })
+          });
           const worstClueIndex = this.clues.findIndex((clue) => clue === worstClue);
           this.clues.splice(worstClueIndex, 1);
         });
@@ -930,8 +957,25 @@ class NMosaic {
 
     const totalVars = varCache.last;
     const result = await satSolveAsync(totalVars, clauses);
-    console.log(result);
+    this.recordSatStats("isConsistent", result);
     return result.SAT;
+  }
+
+  private recordSatStats(
+    phase: string,
+    result: { SAT: boolean; stats: Stats },
+  ): void {
+    const stats = result.stats
+      ? {
+          totalDecisions: result.stats.totalDecisions,
+          totalConflicts: result.stats.totalConflicts,
+          totalPropagations: result.stats.totalPropagations,
+          totalLearnts: result.stats.totalLearnts,
+          maxDecisionLevel: result.stats.maxDecisionLevel,
+          maxPropagationDepth: result.stats.maxPropagationDepth,
+        }
+      : {};
+    this.satStats.push({ phase, SAT: result.SAT, stats });
   }
 
   // ─── SAT encoding & solving ─────────────────────────────────────────
@@ -987,7 +1031,7 @@ class NMosaic {
     // The intended solution must satisfy the puzzle.
     const totalVars = varCache.last;
     const validSolution = await satSolveAsync(totalVars, clauses);
-    console.log(validSolution);
+    this.recordSatStats("validSolution", validSolution);
     if (!validSolution.SAT) return false;
 
     // Negate the intended solution; UNSAT means it is the unique one.
@@ -999,7 +1043,7 @@ class NMosaic {
     clauses.push(blockingClause);
 
     const uniqueSolution = await satSolveAsync(totalVars, clauses);
-    console.log(uniqueSolution);
+    this.recordSatStats("uniqueSolution", uniqueSolution);
     return !uniqueSolution.SAT;
   }
 
@@ -1521,4 +1565,25 @@ function nMosaicMain() {
   requestAnimationFrame(gameLoop);
 }
 
-nMosaicMain();
+// Only boot the interactive game if its DOM is present (the test dashboard
+// page has no #n_mosaic_board and skips this entirely).
+if (
+  typeof document !== "undefined" &&
+  typeof document.getElementById("n_mosaic_board") !== "undefined" &&
+  document.getElementById("n_mosaic_board") !== null
+) {
+  nMosaicMain();
+}
+
+// Expose the classes so the test dashboard (n_mosaic_test.html) can drive
+// generation and inspection directly.
+if (typeof window !== "undefined") {
+  const exposed = window as unknown as {
+    NMosaic: typeof NMosaic;
+    NMosaicCell: typeof NMosaicCell;
+    NMosaicClue: typeof NMosaicClue;
+  };
+  exposed.NMosaic = NMosaic;
+  exposed.NMosaicCell = NMosaicCell;
+  exposed.NMosaicClue = NMosaicClue;
+}
