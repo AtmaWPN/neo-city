@@ -1,15 +1,5 @@
 (() => {
   const $ = (id) => document.getElementById(id);
-  const offscreenCanvas = () => {
-    try {
-      const c = document.createElement("canvas");
-      c.width = 2;
-      c.height = 2;
-      return c;
-    } catch {
-      return null;
-    }
-  };
   function readParams() {
     const num = (id, dflt) => {
       const v = parseInt($(id).value, 10);
@@ -138,10 +128,9 @@
     const statusEl = $("nmt_batchstatus");
     const progressEl = $("nmt_progress");
     statusEl.textContent = "starting\u2026";
-    const canvas = offscreenCanvas();
     for (let i = 0; i < count && !batchCancelled; i++) {
       const t0 = performance.now();
-      const n = new window.NMosaic(1, 1, 2, 1, "random", canvas, canvas);
+      const n = new window.NMosaic(1, 1, 2, 1, "random");
       // Set up the board shape first ("random" is the cheapest way), then
       // generate backward with exactly the chosen solver set.
       await n.regenerate(w, h, colors, fraction, "random");
@@ -263,15 +252,10 @@
   }
   const manualCanvas = $("nmt_board");
   const manualPalette = $("nmt_palette");
-  const manual = new window.NMosaic(
-    9,
-    9,
-    2,
-    0.75,
-    "random",
-    manualCanvas,
-    manualPalette
-  );
+  // Drawing lives in SquareGridNMosaicRenderer (n_mosaic_game.js); NMosaic
+  // itself is pure logic since the merge.
+  const manual = new window.NMosaic(9, 9, 2, 0.75, "random");
+  const manualRenderer = new SquareGridNMosaicRenderer(manualCanvas, manualPalette);
   const logEl = $("nmt_log");
   function logLine(msg) {
     logEl.textContent = (logEl.textContent + "\n" + msg).trimStart();
@@ -307,6 +291,7 @@
     logEl.textContent = "";
     logLine(`generating ${difficulty} ${w}x${h} ${colors} colors\u2026`);
     await manual.regenerate(w, h, colors, fraction, difficulty);
+    manualRenderer.showSolution = false;
     logLine(`done: ${manual.clues.length} clues, ${manual.cells.filter((c) => c.included).length} cells` + (manual.randomPuzzleTries > 0 ? `, solvable random pattern found in ${manual.randomPuzzleTries} tries` : ""));
     updateManualStatus();
   }
@@ -359,9 +344,9 @@
   };
   $("nmt_reset").onclick = resetGuesses;
   $("nmt_solution").onclick = () => {
-    manual.showSolution = !manual.showSolution;
-    $("nmt_solution").textContent = manual.showSolution ? "Hide Solution()" : "Show Solution()";
-    logLine(manual.showSolution ? "solution shown" : "solution hidden");
+    manualRenderer.showSolution = !manualRenderer.showSolution;
+    $("nmt_solution").textContent = manualRenderer.showSolution ? "Hide Solution()" : "Show Solution()";
+    logLine(manualRenderer.showSolution ? "solution shown" : "solution hidden");
   };
   document.querySelectorAll("button[data-tech]").forEach((btn) => {
     btn.onclick = () => applyOnce(btn.dataset["tech"]);
@@ -378,9 +363,9 @@
   $("nmt_method_sat").onclick = syncMethodUI;
   syncMethodUI();
   function loop() {
-    manual.drawBackground();
-    manual.drawBoard();
-    manual.drawPalette();
+    manualRenderer.drawBackground(manual);
+    manualRenderer.drawBoard(manual);
+    manualRenderer.drawPalette(manual);
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);

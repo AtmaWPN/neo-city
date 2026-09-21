@@ -77,6 +77,7 @@ Implied Clue Resolution Cases
 - Identical Areas - Restricts candidates if the Implied Clue values sum to the total area 
 - Contained (Subset A is a subset of Subset B) - Extersection => Subset C, either Subset C is a simple remainder or a propagated subset
 - Overlapping - This can be either TNS or ED depending on whether the Implied Clues are the same color or different
+  - Overlapping Clues can also be resolved via count based logic with a large clue containing both
 - The Contained and Overlapping cases can occur simultaneously with several Implied Clues creating very complex logical structures (e.g. One large Implied Clue can consume multiple non-overlapping contained Implied Clues to create a new Implied Clue for the remainder)
 
 ## Advanced Techniques (AI-Generated and mostly useless)
