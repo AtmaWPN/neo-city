@@ -4,19 +4,12 @@
 // https://www.comp.nus.edu.sg/~gregory/sat/
 
 // TODO
-// 1. Update the SAT Solver with a deterministic branching heuristic and run it in a Web Worker, if it's still too slow move to WASM
-//  1a. Experiment with SAT difficulty sliders (Decisions/Conflicts)
-// 2. Make a Solver that uses the solution techniques
-//  2a. Get data on how often randomly generated puzzles can be solved with only certain techniques 10-20% for easy or medium
-// 3. Try to sort solving techniques by difficulty using the SAT Solver difficulty metric
-// 4. Add a Hint system using the technique based solver
-
-// Solving techniques (In order of difficulty)
-// 1. Simple Remainder
-// 2. Simple Remainder Subset - problem: subset restrictions can be propagated across an arbitrary number of clues
-// 3. Last Candidate
-// 4. Total Neighbourhood Sum
-// 5. Excluded Difference
+// 1. Explore Solving Techniques and using SAT Solver to measure difficulty
+// 2. Puzzle Seeds
+// 3. Make all Puzzle Generation Async and add a loading bar
+// 4. Define Proper Difficulty Settings
+// 5. Hint System
+// 6. THAT'S IT. ONCE THOSE ARE DONE THIS PROJECT IS OFFICIALLY IN "1.0"
 
 // SAT solver globals (loaded from ../SATjs-master/SAT.js and helpers.js)
 declare function satSolveAsync(
