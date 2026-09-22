@@ -21,8 +21,10 @@
     { key: "TotalNeighbourhoodSum", label: "Total Neighbourhood Sum", fn: (m) => m.solveTotalNeighbourhoodSum(m) }
   ];
   const findTech = (key) => TECHNIQUES.find((t) => t.key === key);
-  const chosenTechniques = () =>
-    TECHNIQUES.filter((t) => $("nmt_tech_" + t.key).checked);
+  const genTechniques = () =>
+    TECHNIQUES.filter((t) => $("nmt_gtech_" + t.key).checked);
+  const solveTechniques = () =>
+    TECHNIQUES.filter((t) => $("nmt_stech_" + t.key).checked);
   function techCount(n, key) {
     return n.techniqueCounts[key] ?? 0;
   }
@@ -33,6 +35,7 @@
     let propagations = 0;
     let learnts = 0;
     let maxDecisionLevel = 0;
+    let maxPropagationDepth = 0;
     const byPhase = {};
     for (const rec of n.satStats) {
       calls++;
@@ -45,15 +48,18 @@
         maxDecisionLevel,
         rec.stats.maxDecisionLevel ?? 0
       );
+      maxPropagationDepth = Math.max(
+        maxPropagationDepth,
+        rec.stats.maxPropagationDepth ?? 0
+      );
     }
-    return { calls, byPhase, decisions, conflicts, propagations, learnts, maxDecisionLevel };
+    return { calls, byPhase, decisions, conflicts, propagations, learnts, maxDecisionLevel, maxPropagationDepth };
   }
   const batchRows = [];
   let batchId = 0;
   let batchRunning = false;
   let batchCancelled = false;
-  function collectRow(n, difficulty, idx, ms, verify) {
-    const sat = summarizeSat(n);
+  function collectRow(n, difficulty, idx, ms, verify, genCounts, finalSat, finalTech) {
     const row = {
       batch: batchId,
       idx,
@@ -69,19 +75,26 @@
       randomTries: n.randomPuzzleTries,
       randomPatternFound: n.randomPatternFound ? "true" : "false",
       recipesApplied: n.recipesApplied,
-      satCalls: sat.calls,
-      satConsistency: sat.byPhase["isConsistent"] ?? 0,
-      satValid: sat.byPhase["validSolution"] ?? 0,
-      satUnique: sat.byPhase["uniqueSolution"] ?? 0,
-      satDecisions: sat.decisions,
-      satConflicts: sat.conflicts,
-      satPropagations: sat.propagations,
-      satLearnts: sat.learnts,
-      tSimpleRemainder: techCount(n, "SimpleRemainder"),
-      tLastCandidate: techCount(n, "LastCandidate"),
-      tCandidateRemainder: techCount(n, "SimpleCandidateRemainder"),
-      tSubsetRemainder: techCount(n, "SimpleSubsetRemainder"),
-      tTNS: techCount(n, "TotalNeighbourhoodSum"),
+      satCalls: finalSat.calls,
+      satConsistency: finalSat.byPhase["isConsistent"] ?? 0,
+      satValid: finalSat.byPhase["validSolution"] ?? 0,
+      satUnique: finalSat.byPhase["uniqueSolution"] ?? 0,
+      satDecisions: finalSat.decisions,
+      satConflicts: finalSat.conflicts,
+      satPropagations: finalSat.propagations,
+      satLearnts: finalSat.learnts,
+      satMaxLevel: finalSat.maxDecisionLevel,
+      satMaxDepth: finalSat.maxPropagationDepth,
+      tSimpleRemainder: genCounts["SimpleRemainder"] ?? 0,
+      tLastCandidate: genCounts["LastCandidate"] ?? 0,
+      tCandidateRemainder: genCounts["SimpleCandidateRemainder"] ?? 0,
+      tSubsetRemainder: genCounts["SimpleSubsetRemainder"] ?? 0,
+      tTNS: genCounts["TotalNeighbourhoodSum"] ?? 0,
+      sSimpleRemainder: finalTech["SimpleRemainder"] ?? 0,
+      sLastCandidate: finalTech["LastCandidate"] ?? 0,
+      sCandidateRemainder: finalTech["SimpleCandidateRemainder"] ?? 0,
+      sSubsetRemainder: finalTech["SimpleSubsetRemainder"] ?? 0,
+      sTNS: finalTech["TotalNeighbourhoodSum"] ?? 0,
       verifySolved: "",
       vSimpleRemainder: 0,
       vLastCandidate: 0,
@@ -111,18 +124,36 @@
     batchCancelled = false;
     batchId++;
     const { w, h, colors, fraction } = readParams();
-    const useSat = $("nmt_method_sat").checked;
-    const techniques = useSat ? [] : chosenTechniques();
-    if (!useSat && techniques.length === 0) {
+    const genMethod = $("nmt_gen_techniques").checked
+      ? "techniques"
+      : $("nmt_gen_easyforward").checked
+        ? "easy forward"
+        : $("nmt_gen_hardforward").checked
+          ? "hard forward"
+          : "sat";
+    const solveSat = $("nmt_solve_sat").checked;
+    const genTechs = genTechniques();
+    const solveTechs = solveTechniques();
+    if (genMethod === "techniques" && genTechs.length === 0) {
       $("nmt_methodwarn").textContent =
-        "select at least one technique (or switch to SAT)";
+        "select at least one generation technique (or choose forward / sat)";
+      batchRunning = false;
+      return;
+    }
+    if (!solveSat && solveTechs.length === 0) {
+      $("nmt_methodwarn").textContent =
+        "select at least one solve technique (or switch to SAT)";
       batchRunning = false;
       return;
     }
     $("nmt_methodwarn").textContent = "";
-    const solverLabel = useSat
-      ? "sat backward"
-      : "backward[" + techniques.map((t) => t.key).join("+") + "]";
+    const genLabel = genMethod === "techniques"
+      ? "backward[" + genTechs.map((t) => t.key).join("+") + "]"
+      : genMethod;
+    const solveLabel = solveSat
+      ? "sat"
+      : "techniques[" + solveTechs.map((t) => t.key).join("+") + "]";
+    const difficulty = `${genLabel} / ${solveLabel}`;
     const count = parseInt($("nmt_count").value, 10) || 1;
     const verify = $("nmt_verify").checked;
     $("nmt_start").disabled = true;
@@ -132,21 +163,42 @@
     for (let i = 0; i < count && !batchCancelled; i++) {
       const t0 = performance.now();
       const n = new window.NMosaic(1, 1, 2, 1, "random");
-      // Set up the board shape first ("random" is the cheapest way), then
-      // generate backward with exactly the chosen solver set.
-      await n.regenerate(w, h, colors, fraction, "random");
-      if (useSat) {
-        await n.backwardPuzzleGenerator(() => n.satHasUniqueSolution(n.clues));
+      if (genMethod === "easy forward" || genMethod === "hard forward") {
+        // Forward generation builds the puzzle from an empty board, so let
+        // regenerate() drive it directly rather than pre-filling the random
+        // board shape (which would leave solution colors already assigned).
+        await n.regenerate(w, h, colors, fraction, genMethod);
       } else {
-        await n.backwardPuzzleGenerator(() =>
-          n.techniqueSolve(techniques.map((t) => t.fn)),
-        );
+        // Set up the board shape first ("random" is the cheapest way), then
+        // run backward generation with exactly the chosen generation solver.
+        await n.regenerate(w, h, colors, fraction, "random");
+        if (genMethod === "sat") {
+          await n.backwardPuzzleGenerator(() => n.satHasUniqueSolution(n.clues));
+        } else {
+          await n.backwardPuzzleGenerator(() =>
+            n.techniqueSolve(genTechs.map((t) => t.fn)),
+          );
+        }
       }
+      // Snapshot generation technique counts BEFORE resetting below.
+      const genCounts = { ...n.techniqueCounts };
       const ms = performance.now() - t0;
-      const row = collectRow(n, solverLabel, i + 1, ms, verify);
+      // Final solve for table stats: reset the instrumentation so the SAT
+      // stats below come from a single solve of the finished puzzle rather
+      // than being accumulated across every generation step.
+      n.satStats = [];
+      n.techniqueCounts = {};
+      if (solveSat) {
+        await n.satHasUniqueSolution(n.clues);
+      } else {
+        await n.techniqueSolve(solveTechs.map((t) => t.fn));
+      }
+      const finalSat = summarizeSat(n);
+      const finalTech = { ...n.techniqueCounts };
+      const row = collectRow(n, difficulty, i + 1, ms, verify, genCounts, finalSat, finalTech);
       batchRows.push(row);
       progressEl.textContent = `${i + 1}/${count}`;
-      statusEl.textContent = `#${i + 1}: ${solverLabel} \u2014 ${n.clues.length} clues, ${n.cells.filter((c) => c.included).length} cells`;
+      statusEl.textContent = `#${i + 1}: ${difficulty} \u2014 ${n.clues.length} clues, ${n.cells.filter((c) => c.included).length} cells`;
       renderTable();
       await tick();
     }
@@ -174,11 +226,20 @@
     { key: "satCalls", label: "satCalls", num: true },
     { key: "satDecisions", label: "satDec", num: true },
     { key: "satConflicts", label: "satConf", num: true },
-    { key: "tSimpleRemainder", label: "SR", num: true },
-    { key: "tLastCandidate", label: "LC", num: true },
-    { key: "tCandidateRemainder", label: "SCR", num: true },
-    { key: "tSubsetRemainder", label: "SSR", num: true },
-    { key: "tTNS", label: "TNS", num: true },
+    { key: "satPropagations", label: "satProp", num: true },
+    { key: "satLearnts", label: "satLearnt", num: true },
+    { key: "satMaxLevel", label: "satLvl", num: true },
+    { key: "satMaxDepth", label: "satDepth", num: true },
+    { key: "tSimpleRemainder", label: "gSR", num: true },
+    { key: "tLastCandidate", label: "gLC", num: true },
+    { key: "tCandidateRemainder", label: "gSCR", num: true },
+    { key: "tSubsetRemainder", label: "gSSR", num: true },
+    { key: "tTNS", label: "gTNS", num: true },
+    { key: "sSimpleRemainder", label: "sSR", num: true },
+    { key: "sLastCandidate", label: "sLC", num: true },
+    { key: "sCandidateRemainder", label: "sSCR", num: true },
+    { key: "sSubsetRemainder", label: "sSSR", num: true },
+    { key: "sTNS", label: "sTNS", num: true },
     { key: "verifySolved", label: "verify" }
   ];
   function renderTable() {
@@ -222,11 +283,18 @@
     { key: "satConflicts", label: "sat_conflicts" },
     { key: "satPropagations", label: "sat_propagations" },
     { key: "satLearnts", label: "sat_learnts" },
-    { key: "tSimpleRemainder", label: "tech_simple_remainder" },
-    { key: "tLastCandidate", label: "tech_last_candidate" },
-    { key: "tCandidateRemainder", label: "tech_simple_candidates_remainder" },
-    { key: "tSubsetRemainder", label: "tech_simple_subset_remainder" },
-    { key: "tTNS", label: "tech_total_neighbourhood_sum" },
+    { key: "satMaxLevel", label: "sat_max_decision_level" },
+    { key: "satMaxDepth", label: "sat_max_propagation_depth" },
+    { key: "tSimpleRemainder", label: "gen_tech_simple_remainder" },
+    { key: "tLastCandidate", label: "gen_tech_last_candidate" },
+    { key: "tCandidateRemainder", label: "gen_tech_simple_candidates_remainder" },
+    { key: "tSubsetRemainder", label: "gen_tech_simple_subset_remainder" },
+    { key: "tTNS", label: "gen_tech_total_neighbourhood_sum" },
+    { key: "sSimpleRemainder", label: "solve_tech_simple_remainder" },
+    { key: "sLastCandidate", label: "solve_tech_last_candidate" },
+    { key: "sCandidateRemainder", label: "solve_tech_simple_candidates_remainder" },
+    { key: "sSubsetRemainder", label: "solve_tech_simple_subset_remainder" },
+    { key: "sTNS", label: "solve_tech_total_neighbourhood_sum" },
     { key: "verifySolved", label: "verify_solved" },
     { key: "vSimpleRemainder", label: "verify_simple_remainder" },
     { key: "vLastCandidate", label: "verify_last_candidate" },
@@ -355,23 +423,39 @@
     btn.onclick = () => applyOnce(btn.dataset["tech"]);
   });
   $("nmt_solveall").onclick = solveAll;
+  const manualBody = $("nmt_manual_body");
+  $("nmt_toggle_manual").onclick = () => {
+    const hidden = manualBody.style.display === "none";
+    manualBody.style.display = hidden ? "" : "none";
+    $("nmt_toggle_manual").textContent = hidden ? "Hide()" : "Show()";
+  };
   const syncMethodUI = () => {
-    const useSat = $("nmt_method_sat").checked;
+    const useSat = $("nmt_solve_sat").checked;
+    const useGenTech = $("nmt_gen_techniques").checked;
     TECHNIQUES.forEach((t) => {
-      $("nmt_tech_" + t.key).disabled = useSat;
+      $("nmt_gtech_" + t.key).disabled = !useGenTech;
+      $("nmt_stech_" + t.key).disabled = useSat;
     });
+    $("nmt_gentech_row").style.opacity = useGenTech ? "1" : "0.45";
+    $("nmt_stech_row").style.opacity = useSat ? "0.45" : "1";
     $("nmt_methodwarn").textContent = "";
   };
-  $("nmt_method_techniques").onclick = syncMethodUI;
-  $("nmt_method_sat").onclick = syncMethodUI;
+  $("nmt_gen_techniques").onclick = syncMethodUI;
+  $("nmt_gen_easyforward").onclick = syncMethodUI;
+  $("nmt_gen_hardforward").onclick = syncMethodUI;
+  $("nmt_gen_sat").onclick = syncMethodUI;
+  $("nmt_solve_techniques").onclick = syncMethodUI;
+  $("nmt_solve_sat").onclick = syncMethodUI;
   syncMethodUI();
   function loop() {
-    manualRenderer.drawBackground(manual);
-    manualRenderer.drawBoard(manual);
-    manualRenderer.drawPalette(manual);
+    if (manualBody.style.display !== "none") {
+      manualRenderer.drawBackground(manual);
+      manualRenderer.drawBoard(manual);
+      manualRenderer.drawPalette(manual);
+    }
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);
   updateManualStatus();
-  logLine("ready \u2014 pick techniques (or SAT) and Run Batch().");
+  logLine("ready \u2014 pick a generation method and a solve method, then Run Batch().");
 })();

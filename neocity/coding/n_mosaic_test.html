@@ -71,16 +71,32 @@
         <label><input type="checkbox" id="nmt_verify"> verify final puzzle with techniques (hard set)</label>
       </div>
       <div class="nmt-controls">
-        <span>Solve with:</span>
-        <label><input type="radio" name="nmt_method" id="nmt_method_techniques" value="techniques" checked> techniques</label>
-        <label><input type="radio" name="nmt_method" id="nmt_method_sat" value="sat"> SAT (unique solution)</label>
+        <span>Generate with:</span>
+        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_techniques" value="techniques" checked> techniques</label>
+        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_easyforward" value="easy forward"> easy forward</label>
+        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_hardforward" value="hard forward"> hard forward</label>
+        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_sat" value="sat"> sat backward</label>
       </div>
-      <div class="nmt-controls" id="nmt_technique_row">
-        <label><input type="checkbox" id="nmt_tech_SimpleRemainder" checked> Simple Remainder</label>
-        <label><input type="checkbox" id="nmt_tech_LastCandidate" checked> Last Candidate</label>
-        <label><input type="checkbox" id="nmt_tech_SimpleCandidateRemainder" checked> Simple Candidates Remainder</label>
-        <label><input type="checkbox" id="nmt_tech_SimpleSubsetRemainder"> Simple Subset Remainder</label>
-        <label><input type="checkbox" id="nmt_tech_TotalNeighbourhoodSum"> Total Neighbourhood Sum</label>
+      <div class="nmt-controls" id="nmt_gentech_row">
+        <span>Gen techniques:</span>
+        <label><input type="checkbox" id="nmt_gtech_SimpleRemainder" checked> Simple Remainder</label>
+        <label><input type="checkbox" id="nmt_gtech_LastCandidate" checked> Last Candidate</label>
+        <label><input type="checkbox" id="nmt_gtech_SimpleCandidateRemainder" checked> Simple Candidates Remainder</label>
+        <label><input type="checkbox" id="nmt_gtech_SimpleSubsetRemainder"> Simple Subset Remainder</label>
+        <label><input type="checkbox" id="nmt_gtech_TotalNeighbourhoodSum"> Total Neighbourhood Sum</label>
+      </div>
+      <div class="nmt-controls">
+        <span>Solve with:</span>
+        <label><input type="radio" name="nmt_solvemethod" id="nmt_solve_sat" value="sat" checked> SAT (unique solution)</label>
+        <label><input type="radio" name="nmt_solvemethod" id="nmt_solve_techniques" value="techniques"> techniques</label>
+      </div>
+      <div class="nmt-controls" id="nmt_stech_row">
+        <span>Solve techniques:</span>
+        <label><input type="checkbox" id="nmt_stech_SimpleRemainder" checked> Simple Remainder</label>
+        <label><input type="checkbox" id="nmt_stech_LastCandidate" checked> Last Candidate</label>
+        <label><input type="checkbox" id="nmt_stech_SimpleCandidateRemainder" checked> Simple Candidates Remainder</label>
+        <label><input type="checkbox" id="nmt_stech_SimpleSubsetRemainder" checked> Simple Subset Remainder</label>
+        <label><input type="checkbox" id="nmt_stech_TotalNeighbourhoodSum" checked> Total Neighbourhood Sum</label>
       </div>
       <div class="nmt-status nmt-warn" id="nmt_methodwarn"></div>
       <div class="nmt-buttons">
@@ -96,7 +112,10 @@
     </div>
 
     <div class="nmt-panel">
-      <h4>Manual Sandbox</h4>
+      <h4 style="display: flex; align-items: baseline; gap: 0.5em;">Manual Sandbox
+        <button id="nmt_toggle_manual" class="function" style="padding: 0.05em 0.5em; font-size: 12px;">Hide()</button>
+      </h4>
+      <div id="nmt_manual_body" style="display: none;">
       <div class="nmt-controls">
         <label>Difficulty
           <select id="nmt_manual_difficulty">
@@ -130,6 +149,7 @@
       </div>
       <div class="nmt-status" id="nmt_manualstatus"></div>
       <div id="nmt_log"></div>
+      </div>
     </div>
 
     <script src="../SATjs-master/SAT.js"></script>

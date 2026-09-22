@@ -55,6 +55,8 @@ class State {
     this.clauses = [];
     /** @type {number[]} */
     this.trail = [];
+    /** @type {number[]} */
+    this.depthTrail = [];
     /** @type {number} */
     this.dlevel = 0;
     /** @type {number} */
@@ -86,22 +88,30 @@ class Stats {
 }
 
 /**
+ * Bump the VSIDS activity score of a single variable.
+ * @param {State} state
+ * @param {Variable | null} variable
+ */
+function bumpVariable(state, variable) {
+  if (variable === null) return;
+  variable.score += state.increment;
+  if (variable.score > 1e100) {
+    for (let i = 1; i < state.vars.length; i++) {
+      const v = state.vars[i];
+      if (v === null) continue;
+      v.score /= 1e100;
+    }
+    state.increment /= 1e100;
+  }
+}
+
+/**
  * @param {State} state
  * @param {Clause} noGood
  */
 function incrementActivity(state, noGood) {
   for (let v = 0; v < noGood.length; v++) {
-    const variable = literalGetVar(state, noGood[v]);
-    if (variable === null) continue;
-    variable.score += state.increment;
-    if (variable.score > 1e100) {
-      for (let i = 1; i < state.vars.length; i++) {
-        const variable = state.vars[i];
-        if (variable === null) continue;
-        variable.score /= 1e100;
-      }
-      state.increment /= 1e100;
-    }
+    bumpVariable(state, literalGetVar(state, noGood[v]));
   }
   state.increment /= 0.95;
 };
@@ -265,8 +275,11 @@ function satSelectLiteral(state) {
     if (maxVar === 0 || nextVar.score > (state.vars[maxVar]?.score ?? 0)) maxVar = i;
   }
 
+  // No unset variables left: the formula is decided. This is not a real
+  // decision (it is the probe that signals SAT), so do not count it.
+  if (maxVar === 0) return 0;
+
   state.stats.totalDecisions++;
-  // (lcg(state) / 2147483648)
   return (lcg(state) / 2147483648) < 0.5 ? -maxVar : maxVar;
 }
 
@@ -326,16 +339,20 @@ function satUnitPropagate(state, literal, reason) {
     curr = state.trail.length;
     next = curr + 1;
 
+    // Root of this propagation wave: either a decision (depth 0, not a
+    // propagation) or, after a conflict restart, the asserting literal
+    // implied by the learned clause (depth 1 -- one propagation step).
     literalSet(state, literal, reason);
-    if (reason !== null) {
-      maxPropagationDepth++;
-      state.stats.totalPropagations++;
-    }
+    const rootDepth = reason === null ? 0 : 1;
+    state.depthTrail.push(rootDepth);
+    if (reason !== null) state.stats.totalPropagations++;
 
     restart = false;
     while (curr < next) {
       literal = state.trail[curr];
       curr++;
+      const currentDepth = state.depthTrail[curr - 1];
+      maxPropagationDepth = Math.max(maxPropagationDepth, currentDepth);
       literal = -literal;
       var v = literalGetVar(state, literal);
       var watch = v.watches[Number(literalGetSign(literal))];
@@ -357,12 +374,17 @@ function satUnitPropagate(state, literal, reason) {
         if (j >= clause.length) {
           // All other literals a false; use the other watch:
           if (!w.set) {
-            // Implied set:
+            // Implied set (unit propagation): the clause forces this literal.
             if (watch_idx != 0) {
               clause[0] = watch_lit;
               clause[1] = literal;
             }
+            // Depth of an implied literal is one deeper than the trail entry
+            // whose assignment forced it.
+            const impliedDepth = currentDepth + 1;
             literalSet(state, watch_lit, clause);
+            state.depthTrail.push(impliedDepth);
+            state.stats.totalPropagations++;
             next++;
             continue;
           }
@@ -482,6 +504,7 @@ function satBacktrack(state, reason) {
     tlevel--;
   }
   state.trail.length = tlevel + 1;
+  state.depthTrail.length = tlevel + 1;
 
   // Clear the marks:
   for (var i = 0; i < conflicts.length; i++) {
