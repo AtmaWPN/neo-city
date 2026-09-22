@@ -1,5 +1,14 @@
 {
     "posts": [
+    {
+      "title": "N-Mosaic update",
+			"year": 2026,
+			"month": 9,
+			"day": 21,
+			"subtitle": "The penultimate N-Mosaic post?",
+			"encrypted": false,
+			"content": "<p>N-Mosaic has gone through a lot of changes since my last post. The biggest is that I'm now primarily relying on backwards puzzle generation, which is how the SAT difficulty works. Basically I've defined a bunch of solving techniques and depending on the desired difficulty of the puzzle I generate a random puzzle and remove clues from it until the selected solving techniques can only just barely solve it. My previous strategy was having recipe generators that used the same solving techniques to generate a list of all possible ways I could add clues to a partial puzzle to make those techniques occur in the puzzle along with the likelihood of those clues occurring naturally. The problem with this strategy is that it becomes much harder and more expensive to generate these lists as I add more complex techniques. One additional benefit of using solving techniques to actually solve the puzzle is that I can also use them for a hint system, which I plan on adding soon. Currently I'm still exploring puzzle difficulty using the SAT Solver like I talked about in my last post, but I have a firm to-do list for the rest of this project: I need to make all puzzle generation asynchronous so it doesn't freeze the browser, I need to finish defining the difficulty options, and I need to make the hint system. Once all of those things are done I will consider N-Mosaic to be out of \"early access\". For the hint system I want it to use the solving techniques to find the easiest next step, and then highlight the clues or cells involved. I think this is good because it is helpful while still allowing the player to learn the logic behind the technique.</p>"
+    },
 		{
 			"title": "I still don't plan on ever dying",
 			"year": 2026,
