@@ -58,6 +58,7 @@
       batch: batchId,
       idx,
       difficulty,
+      seed: n.seed,
       w: n.BOARD_WIDTH,
       h: n.BOARD_HEIGHT,
       colors: n.BOARD_COLORS,
@@ -160,6 +161,7 @@
   const TABLE_COLUMNS = [
     { key: "idx", label: "#", num: true },
     { key: "difficulty", label: "difficulty", left: true },
+    { key: "seed", label: "seed", num: true },
     { key: "w", label: "w", num: true },
     { key: "h", label: "h", num: true },
     { key: "colors", label: "colors", num: true },
@@ -201,6 +203,7 @@
     { key: "batch", label: "batch" },
     { key: "idx", label: "idx" },
     { key: "difficulty", label: "difficulty" },
+    { key: "seed", label: "seed" },
     { key: "w", label: "width" },
     { key: "h", label: "height" },
     { key: "colors", label: "colors" },

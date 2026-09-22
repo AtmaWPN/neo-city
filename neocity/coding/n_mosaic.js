@@ -39,6 +39,15 @@
     }
     return result;
   }
+  const seedrandom = Math.seedrandom;
+  function shuffleInPlace(items, rng) {
+    for (let i = items.length - 1; i > 0; i--) {
+      const j = Math.floor(rng() * (i + 1));
+      const tmp = items[i];
+      items[i] = items[j];
+      items[j] = tmp;
+    }
+  }
   class NMosaic {
     cells;
     clues;
@@ -47,6 +56,9 @@
     BOARD_COLORS;
     BOARD_FRACTION;
     BOARD_DIFFICULTY;
+    /** Seed that produced this puzzle; pass it back in to reproduce it. */
+    seed;
+    random;
     puzzleComplete = false;
     selectedColor = 0;
     pencilMode = false;
@@ -56,7 +68,7 @@
     randomPuzzleTries = 0;
     randomPatternFound = false;
     recipesApplied = 0;
-    constructor(height = 9, width = 9, colors = 2, fraction = 1, difficulty = "random") {
+    constructor(height = 9, width = 9, colors = 2, fraction = 1, difficulty = "random", seed) {
       this.BOARD_HEIGHT = height;
       this.BOARD_WIDTH = width;
       this.BOARD_COLORS = colors;
@@ -69,15 +81,25 @@
         this.BOARD_WIDTH,
         this.BOARD_COLORS,
         this.BOARD_FRACTION,
-        this.BOARD_DIFFICULTY
+        this.BOARD_DIFFICULTY,
+        seed
       );
     }
-    async regenerate(height = 9, width = 9, colors = 2, fraction = 0.5, difficulty = "random") {
+    /** A fresh random seed, used whenever the caller doesn't supply one. */
+    static randomSeed() {
+      if (typeof crypto !== "undefined" && crypto.getRandomValues !== void 0) {
+        return crypto.getRandomValues(new Uint32Array(1))[0];
+      }
+      return Math.floor(Math.random() * 4294967296);
+    }
+    async regenerate(height = 9, width = 9, colors = 2, fraction = 0.5, difficulty = "random", seed) {
       this.BOARD_HEIGHT = height;
       this.BOARD_WIDTH = width;
       this.BOARD_COLORS = colors;
       this.BOARD_FRACTION = fraction;
       this.BOARD_DIFFICULTY = difficulty;
+      this.seed = seed !== void 0 ? seed : NMosaic.randomSeed();
+      this.random = seedrandom(this.seed);
       this.selectedColor = 0;
       this.pencilMode = false;
       this.satStats = [];
@@ -397,7 +419,7 @@
         let applied = false;
         while (allRecipes.length > 0 && !applied) {
           const totalWeight = allRecipes.reduce((sum, r) => sum + r.weight, 0);
-          let rng = Math.random() * totalWeight;
+          let rng = this.random() * totalWeight;
           let selectedIndex = -1;
           for (let i = 0; i < allRecipes.length; i++) {
             rng -= allRecipes[i].weight;
@@ -465,7 +487,7 @@
       }
       this.randomPuzzleTries = tries;
       this.randomPatternFound = solvable;
-      this.clues.sort(() => Math.random() - 0.5);
+      shuffleInPlace(this.clues, this.random);
       const maxAttempts = this.clues.length;
       let counter = 0;
       while (counter <= maxAttempts) {
@@ -539,7 +561,7 @@
       this.cells.forEach((cell) => {
         cell.color = null;
         if (!cell.included) return;
-        cell.solutionColor = Math.floor(Math.random() * this.BOARD_COLORS);
+        cell.solutionColor = Math.floor(this.random() * this.BOARD_COLORS);
       });
       this.clues = [];
       for (const cell of this.cells) {
@@ -581,7 +603,7 @@
       addNeighborsToFrontier(startCell);
       while (this.cells.filter((it) => it.included).length < targetCount && frontier.size > 0) {
         const frontierArray = Array.from(frontier);
-        const nextCell = frontierArray[Math.floor(Math.random() * frontierArray.length)];
+        const nextCell = frontierArray[Math.floor(this.random() * frontierArray.length)];
         frontier.delete(nextCell);
         nextCell.included = true;
         addNeighborsToFrontier(nextCell);

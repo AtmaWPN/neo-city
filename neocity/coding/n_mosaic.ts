@@ -94,6 +94,32 @@ function binomial(n: number, k: number): number {
   return result;
 }
 
+/**
+ * Seedable randomness comes from ../helpers/seedrandom.js (David Bau, MIT),
+ * loaded by the page before n_mosaic.js. It only mounts itself as
+ * Math.seedrandom, and invoking that AS a Math method would replace
+ * Math.random page-wide instead of returning a PRNG — so grab the reference
+ * and call it bare: seedrandom(seed) returns an independent, deterministic
+ * PRNG closure whose call() draws a double in [0, 1).
+ */
+type SeedPRNG = {
+  (): number; // double in [0, 1) with a full 52-bit mantissa
+  int32(): number; // signed 32-bit integer
+  quick(): number; // double in [0, 1) from 32 bits
+};
+
+const seedrandom: (seed: number | string) => SeedPRNG = (Math as any).seedrandom;
+
+/** In-place Fisher–Yates shuffle driven by a seedable PRNG. */
+function shuffleInPlace<T>(items: T[], rng: () => number): void {
+  for (let i = items.length - 1; i > 0; i--) {
+    const j = Math.floor(rng() * (i + 1));
+    const tmp = items[i];
+    items[i] = items[j];
+    items[j] = tmp;
+  }
+}
+
 class NMosaic {
   cells: Array<NMosaicCell>;
   clues: Array<NMosaicClue>;
@@ -102,6 +128,9 @@ class NMosaic {
   BOARD_COLORS: number;
   BOARD_FRACTION: number;
   BOARD_DIFFICULTY: string;
+  /** Seed that produced this puzzle; pass it back in to reproduce it. */
+  seed: number;
+  private random: SeedPRNG;
   puzzleComplete: boolean = false;
   selectedColor: number = 0;
   pencilMode: boolean = false;
@@ -119,6 +148,7 @@ class NMosaic {
     colors: number = 2,
     fraction: number = 1.0,
     difficulty: string = "random",
+    seed?: number,
   ) {
     this.BOARD_HEIGHT = height;
     this.BOARD_WIDTH = width;
@@ -135,7 +165,16 @@ class NMosaic {
       this.BOARD_COLORS,
       this.BOARD_FRACTION,
       this.BOARD_DIFFICULTY,
+      seed,
     );
+  }
+
+  /** A fresh random seed, used whenever the caller doesn't supply one. */
+  static randomSeed(): number {
+    if (typeof crypto !== "undefined" && crypto.getRandomValues !== undefined) {
+      return crypto.getRandomValues(new Uint32Array(1))[0];
+    }
+    return Math.floor(Math.random() * 4294967296);
   }
 
   async regenerate(
@@ -144,12 +183,18 @@ class NMosaic {
     colors: number = 2,
     fraction: number = 0.5,
     difficulty: string = "random",
+    seed?: number,
   ) {
     this.BOARD_HEIGHT = height;
     this.BOARD_WIDTH = width;
     this.BOARD_COLORS = colors;
     this.BOARD_FRACTION = fraction;
     this.BOARD_DIFFICULTY = difficulty;
+    // No seed passed means "fresh random puzzle" (keeps the test dashboard's
+    // batch loop producing independent boards). A seed passed again always
+    // reproduces the exact same board, shape, solution and clues.
+    this.seed = seed !== undefined ? seed : NMosaic.randomSeed();
+    this.random = seedrandom(this.seed);
     this.selectedColor = 0;
     this.pencilMode = false;
 
@@ -633,7 +678,7 @@ class NMosaic {
       let applied = false;
       while (allRecipes.length > 0 && !applied) {
         const totalWeight = allRecipes.reduce((sum, r) => sum + r.weight, 0);
-        let rng = Math.random() * totalWeight;
+        let rng = this.random() * totalWeight;
         let selectedIndex = -1;
         for (let i = 0; i < allRecipes.length; i++) {
           rng -= allRecipes[i].weight;
@@ -725,7 +770,9 @@ class NMosaic {
     this.randomPuzzleTries = tries;
     this.randomPatternFound = solvable;
 
-    this.clues.sort(() => Math.random() - 0.5);
+    // Seeded Fisher–Yates instead of a random comparator: the sort-based
+    // shuffle's result is implementation dependent, Fisher–Yates is portable.
+    shuffleInPlace(this.clues, this.random);
 
     const maxAttempts = this.clues.length;
     let counter = 0;
@@ -811,7 +858,7 @@ class NMosaic {
     this.cells.forEach((cell) => {
       cell.color = null;
       if (!cell.included) return;
-      cell.solutionColor = Math.floor(Math.random() * this.BOARD_COLORS);
+      cell.solutionColor = Math.floor(this.random() * this.BOARD_COLORS);
     });
 
     this.clues = [];
@@ -869,7 +916,7 @@ class NMosaic {
     ) {
       const frontierArray = Array.from(frontier);
       const nextCell =
-        frontierArray[Math.floor(Math.random() * frontierArray.length)];
+        frontierArray[Math.floor(this.random() * frontierArray.length)];
       frontier.delete(nextCell);
       nextCell.included = true;
       addNeighborsToFrontier(nextCell);

@@ -359,13 +359,87 @@ function nMosaicMain() {
   const difficultyInput = document.getElementById(
     "n_mosaic_difficulty",
   );
+  const seedInput = document.getElementById("n_mosaic_seed");
+  const newSeedButton = document.getElementById("n_mosaic_new_seed");
+  const shareButton = document.getElementById("n_mosaic_share");
+  const shareStatus = document.getElementById("n_mosaic_share_status");
+
+  const DIFFICULTIES = [
+    "easy forward",
+    "easy backward",
+    "medium backward",
+    "hard forward",
+    "hard backward",
+    "sat backward",
+    "random",
+  ];
+
+  function readUrlParam(name) {
+    try {
+      return new URLSearchParams(window.location.search).get(name);
+    } catch (ignored) {
+      return null;
+    }
+  }
+
+  function clampInt(value, min, max, fallback) {
+    const n = parseInt(value, 10);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+  }
+
+  function clampFloat(value, min, max, fallback) {
+    const n = parseFloat(value);
+    return Number.isFinite(n) ? Math.min(max, Math.max(min, n)) : fallback;
+  }
+
+  function parseSeed(value) {
+    const n = parseInt(value, 10);
+    if (!Number.isFinite(n)) return null;
+    return clampInt(n, 0, 4294967295, null);
+  }
+
+  function currentDifficulty() {
+    return DIFFICULTIES.includes(difficultyInput.value)
+      ? difficultyInput.value
+      : "random";
+  }
+
+  // Shared puzzle links look like n_mosaic.html?seed=…&w=…&h=…&c=…&f=…&d=…
+  // and are honoured on page load so the exact board comes back.
+  function applyUrlParams() {
+    const w = readUrlParam("w");
+    if (w !== null) widthInput.value = clampInt(w, 2, 32, widthInput.value);
+    const h = readUrlParam("h");
+    if (h !== null) heightInput.value = clampInt(h, 2, 32, heightInput.value);
+    const c = readUrlParam("c");
+    if (c !== null) colorsInput.value = clampInt(c, 2, 8, colorsInput.value);
+    const f = readUrlParam("f");
+    if (f !== null)
+      shapeFractionInput.value = clampFloat(
+        f,
+        0.05,
+        1.0,
+        shapeFractionInput.value,
+      );
+    const d = readUrlParam("d");
+    if (d !== null && DIFFICULTIES.includes(d)) difficultyInput.value = d;
+    const s = readUrlParam("seed");
+    if (s !== null && parseSeed(s) !== null) seedInput.value = String(parseSeed(s));
+  }
+
+  applyUrlParams();
+
   const nMosaic = new NMosaic(
     parseInt(heightInput.value),
     parseInt(widthInput.value),
     parseInt(colorsInput.value),
     parseFloat(shapeFractionInput.value),
-    difficultyInput.value,
+    currentDifficulty(),
+    // undefined -> the generator picks (and records) a fresh random seed.
+    parseSeed(seedInput.value) ?? undefined,
   );
+  // Reflect the seed that was actually used, so Refresh/Share stay truthful.
+  seedInput.value = String(nMosaic.seed);
   const renderer = new SquareGridNMosaicRenderer(canvas, paletteCanvas);
 
   function handlePaletteClick(e) {
@@ -514,16 +588,65 @@ function nMosaicMain() {
   canvas.addEventListener("wheel", handleWheel, { passive: false });
   paletteCanvas.addEventListener("wheel", handleWheel, { passive: false });
 
+  function shareUrl() {
+    const params = new URLSearchParams({
+      seed: String(nMosaic.seed),
+      w: String(parseInt(widthInput.value)),
+      h: String(parseInt(heightInput.value)),
+      c: String(parseInt(colorsInput.value)),
+      f: shapeFractionInput.value,
+      d: currentDifficulty(),
+    });
+    const base = window.location.origin
+      ? window.location.origin + window.location.pathname
+      : window.location.pathname;
+    return `${base}?${params.toString()}`;
+  }
+
+  function updateAddressBar() {
+    try {
+      history.replaceState(null, "", shareUrl());
+    } catch (ignored) {
+      // Sandboxed iframes / file:// pages can't rewrite the URL — harmless.
+    }
+  }
+
   function regenerate() {
+    // An empty seed field means "surprise me": mint a fresh seed up front so
+    // the field, the URL and the generator all agree.
+    if (parseSeed(seedInput.value) === null) {
+      seedInput.value = String(NMosaic.randomSeed());
+    }
     nMosaic.regenerate(
       parseInt(heightInput.value),
       parseInt(widthInput.value),
       parseInt(colorsInput.value),
       parseFloat(shapeFractionInput.value),
-      difficultyInput.value,
+      currentDifficulty(),
+      parseSeed(seedInput.value),
     );
     renderer.showSolution = false;
+    shareStatus.textContent = "";
+    updateAddressBar();
   }
+
+  newSeedButton.onclick = () => {
+    seedInput.value = String(NMosaic.randomSeed());
+    regenerate();
+  };
+
+  shareButton.onclick = () => {
+    const url = shareUrl();
+    const show = (msg) => (shareStatus.textContent = msg);
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard
+        .writeText(url)
+        .then(() => show("Copied! Send this link to reproduce the puzzle."))
+        .catch(() => show(`Copy this link: ${url}`));
+    } else {
+      show(`Copy this link: ${url}`);
+    }
+  };
 
   regenerateButton.onclick = regenerate;
   revealSolutionButton.onclick = () => {

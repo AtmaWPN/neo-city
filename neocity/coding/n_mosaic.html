@@ -39,6 +39,11 @@
         <option value="sat backward">sat backward</option>
         <option value="random">random</option>
       </select>
+      <label for="n_mosaic_seed">Seed:</label>
+      <input type="number" id="n_mosaic_seed" value="" min="0" max="4294967295" title="The seed this puzzle was generated from. Enter a seed to reproduce a specific puzzle; leave empty on Regenerate() for a fresh one.">
+      <button id="n_mosaic_new_seed" class="function" title="Pick a new random seed and rebuild the puzzle">New Seed()</button>
+      <button id="n_mosaic_share" class="function" title="Copy a link that reproduces exactly this puzzle">Share()</button>
+      <span id="n_mosaic_share_status" style="color: var(--string, #ccc); font-size: 13px;"></span>
     </div>
     <div id="n_mosaic_game" style="display: flex; gap: 4px;">
       <canvas id="n_mosaic_board" width="576" height="576"></canvas>
@@ -51,6 +56,7 @@
     <script src="../SATjs-master/SAT.js"></script>
     <script src="../SATjs-master/SAT_worker.js"></script>
     <script src="../SATjs-master/helpers.js"></script>
+    <script src="../helpers/seedrandom.js"></script>
     <script src="n_mosaic.js"></script>
     <script src="n_mosaic_game.js"></script>
   </body>
