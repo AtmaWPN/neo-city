@@ -302,8 +302,7 @@
     { key: "vSubsetRemainder", label: "verify_simple_subset_remainder" },
     { key: "vTNS", label: "verify_total_neighbourhood_sum" }
   ];
-  function downloadCsv() {
-    if (batchRows.length === 0) return;
+  function buildCsv() {
     const esc = (v) => {
       const s = String(v ?? "");
       return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
@@ -312,7 +311,11 @@
     for (const row of batchRows) {
       lines.push(CSV_COLUMNS.map((c) => esc(row[c.key])).join(","));
     }
-    const csv = "\uFEFF" + lines.join("\r\n");
+    return "\uFEFF" + lines.join("\r\n");
+  }
+  function downloadCsv() {
+    if (batchRows.length === 0) return;
+    const csv = buildCsv();
     const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
     const a = document.createElement("a");
     const stamp = (/* @__PURE__ */ new Date()).toISOString().replace(/[:.]/g, "-");
@@ -321,12 +324,51 @@
     a.click();
     URL.revokeObjectURL(a.href);
   }
+  function copyCsvToClipboard() {
+    if (batchRows.length === 0) {
+      $("nmt_progress").textContent = "nothing to copy yet";
+      return;
+    }
+    let csv = buildCsv();
+    if (csv.startsWith("\uFEFF")) csv = csv.slice(1); // strip BOM for paste
+    const done = (ok) => {
+      $("nmt_progress").textContent = ok
+        ? `copied ${batchRows.length} row(s) to clipboard`
+        : "copy failed \u2014 select and copy from console";
+    };
+    const fallback = () => {
+      const ta = document.createElement("textarea");
+      ta.value = csv;
+      ta.style.position = "fixed";
+      ta.style.opacity = "0";
+      document.body.append(ta);
+      ta.select();
+      ta.setSelectionRange(0, csv.length);
+      let ok = false;
+      try {
+        ok = document.execCommand("copy");
+      } catch (e) {
+        ok = false;
+      }
+      ta.remove();
+      done(ok);
+    };
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(csv).then(() => done(true)).catch(fallback);
+    } else {
+      fallback();
+    }
+  }
   const manualCanvas = $("nmt_board");
   const manualPalette = $("nmt_palette");
   // Drawing lives in SquareGridNMosaicRenderer (n_mosaic_game.js); NMosaic
   // itself is pure logic since the merge.
   const manual = new window.NMosaic(9, 9, 2, 0.75, "random");
   const manualRenderer = new SquareGridNMosaicRenderer(manualCanvas, manualPalette);
+  // Make the sandbox board playable: same input handling as the main game
+  // page (paint, erase, pencil marks, palette, wheel, number keys), with the
+  // sandbox status line refreshed after each stroke.
+  new NMosaicGameController(manualRenderer, manual, manualCanvas, manualPalette, updateManualStatus);
   const logEl = $("nmt_log");
   function logLine(msg) {
     logEl.textContent = (logEl.textContent + "\n" + msg).trimStart();
@@ -356,12 +398,56 @@
     const status = `cells=${filled}/${included} clues=${manual.clues.length} unsatisfiedClues=${badClues} solved=${manualSolved() ? "YES" : "no"}${tries} satCalls=${sat.calls}`;
     $("nmt_manualstatus").textContent = status;
   }
+  const manualTechs = () =>
+    TECHNIQUES.filter((t) => $("nmt_mtech_" + t.key).checked);
+  const syncManualGenUI = () => {
+    const custom = $("nmt_manual_genmethod").value === "custom techniques";
+    $("nmt_manual_tech_row").style.opacity = custom ? "1" : "0.45";
+    TECHNIQUES.forEach((t) => {
+      $("nmt_mtech_" + t.key).disabled = !custom;
+    });
+  };
   async function manualGenerate() {
     const { w, h, colors, fraction } = readParams();
-    const difficulty = $("nmt_manual_difficulty").value;
+    const genMethod = $("nmt_manual_genmethod").value;
+    const seedField = $("nmt_manual_seed");
+    const parsedSeed = parseInt(seedField.value.trim(), 10);
+    const seed = Number.isFinite(parsedSeed)
+      ? Math.min(4294967295, Math.max(0, parsedSeed))
+      : null;
     logEl.textContent = "";
-    logLine(`generating ${difficulty} ${w}x${h} ${colors} colors\u2026`);
-    await manual.regenerate(w, h, colors, fraction, difficulty);
+    let difficulty = genMethod;
+    let customTechs = null;
+    let genLabel = genMethod;
+    if (genMethod === "custom techniques") {
+      customTechs = manualTechs();
+      if (customTechs.length === 0) {
+        logLine("select at least one generation technique");
+        return;
+      }
+      difficulty = "random";
+      genLabel = "custom[" + customTechs.map((t) => t.key).join("+") + "]";
+    }
+    logLine(
+      `generating ${genLabel} ${w}x${h} ${colors} colors ` +
+        (seed === null ? "seed=random" : `seed=${seed}`) +
+        "\u2026",
+    );
+    await manual.regenerate(
+      w,
+      h,
+      colors,
+      fraction,
+      difficulty,
+      seed === null ? undefined : seed,
+    );
+    if (customTechs !== null) {
+      await manual.backwardPuzzleGenerator(() =>
+        manual.techniqueSolve(customTechs.map((t) => t.fn)),
+      );
+    }
+    // Reflect the seed genuinely used so the board can be reproduced.
+    seedField.value = String(manual.seed);
     manualRenderer.showSolution = false;
     logLine(`done: ${manual.clues.length} clues, ${manual.cells.filter((c) => c.included).length} cells` + (manual.randomPuzzleTries > 0 ? `, solvable random pattern found in ${manual.randomPuzzleTries} tries` : ""));
     updateManualStatus();
@@ -410,9 +496,23 @@
     batchCancelled = true;
   };
   $("nmt_csv").onclick = downloadCsv;
+  $("nmt_csvcopy").onclick = copyCsvToClipboard;
+  $("nmt_clear").onclick = () => {
+    if (batchRunning) return;
+    batchRows.length = 0;
+    $("nmt_progress").textContent = "";
+    $("nmt_batchstatus").textContent = "table cleared";
+    renderTable();
+  };
   $("nmt_manual_generate").onclick = () => {
     void manualGenerate();
   };
+  $("nmt_manual_newseed").onclick = () => {
+    $("nmt_manual_seed").value = String(window.NMosaic.randomSeed());
+    void manualGenerate();
+  };
+  $("nmt_manual_genmethod").onchange = syncManualGenUI;
+  syncManualGenUI();
   $("nmt_reset").onclick = resetGuesses;
   $("nmt_solution").onclick = () => {
     manualRenderer.showSolution = !manualRenderer.showSolution;

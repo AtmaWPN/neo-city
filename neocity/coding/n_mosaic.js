@@ -68,7 +68,7 @@
     randomPuzzleTries = 0;
     randomPatternFound = false;
     recipesApplied = 0;
-    constructor(height = 9, width = 9, colors = 2, fraction = 1, difficulty = "random", seed) {
+    constructor(height = 10, width = 10, colors = 3, fraction = 0.8, difficulty = "random", seed = NMosaic.randomSeed()) {
       this.BOARD_HEIGHT = height;
       this.BOARD_WIDTH = width;
       this.BOARD_COLORS = colors;

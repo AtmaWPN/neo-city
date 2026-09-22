@@ -103,6 +103,8 @@
         <button id="nmt_start" class="function">Run Batch()</button>
         <button id="nmt_cancel" class="function">Cancel()</button>
         <button id="nmt_csv" class="function">Download CSV()</button>
+        <button id="nmt_csvcopy" class="function">Copy CSV()</button>
+        <button id="nmt_clear" class="function">Clear Table()</button>
         <span id="nmt_progress"></span>
       </div>
       <div class="nmt-status" id="nmt_batchstatus"></div>
@@ -117,8 +119,8 @@
       </h4>
       <div id="nmt_manual_body" style="display: none;">
       <div class="nmt-controls">
-        <label>Difficulty
-          <select id="nmt_manual_difficulty">
+        <label>Generator
+          <select id="nmt_manual_genmethod">
             <option value="easy forward">easy forward</option>
             <option value="easy backward">easy backward</option>
             <option value="medium backward">medium backward</option>
@@ -126,8 +128,19 @@
             <option value="hard backward">hard backward</option>
             <option value="sat backward">sat backward</option>
             <option value="random">random</option>
+            <option value="custom techniques">custom techniques</option>
           </select>
         </label>
+        <label>Seed <input type="number" id="nmt_manual_seed" value="" min="0" max="4294967295" step="1" placeholder="random"></label>
+        <button id="nmt_manual_newseed" class="function" style="padding: 0.05em 0.5em; font-size: 12px;">New Seed()</button>
+      </div>
+      <div class="nmt-controls" id="nmt_manual_tech_row">
+        <span>Gen techniques:</span>
+        <label><input type="checkbox" id="nmt_mtech_SimpleRemainder" checked> Simple Remainder</label>
+        <label><input type="checkbox" id="nmt_mtech_LastCandidate" checked> Last Candidate</label>
+        <label><input type="checkbox" id="nmt_mtech_SimpleCandidateRemainder" checked> Simple Candidates Remainder</label>
+        <label><input type="checkbox" id="nmt_mtech_SimpleSubsetRemainder" checked> Simple Subset Remainder</label>
+        <label><input type="checkbox" id="nmt_mtech_TotalNeighbourhoodSum" checked> Total Neighbourhood Sum</label>
       </div>
       <div class="nmt-buttons">
         <button id="nmt_manual_generate" class="function">Generate()</button>

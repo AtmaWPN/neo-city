@@ -331,6 +331,188 @@ class SquareGridNMosaicRenderer {
   }
 }
 
+// Shared input handling for a NMosaic board: painting cells, erasing,
+// pencil marks, palette selection, colour cycling and win detection.
+// Used by both the main game page and the test dashboard sandbox.
+class NMosaicGameController {
+  constructor(renderer, nMosaic, boardCanvas, paletteCanvas, onChange) {
+    this.renderer = renderer;
+    this.nMosaic = nMosaic;
+    this.boardCanvas = boardCanvas;
+    this.paletteCanvas = paletteCanvas;
+    // Called after a stroke that actually changes the board.
+    this.onChange = onChange ?? (() => {});
+
+    this.isPainting = false;
+    this.paintButton = 0;
+
+    this.boardCanvas.addEventListener("mousedown", (e) => this.startPaint(e));
+    this.boardCanvas.addEventListener("mousemove", (e) => this.continuePaint(e));
+    window.addEventListener("mouseup", (e) => this.endPaint(e));
+    this.paletteCanvas.addEventListener("mousedown", (e) => this.handlePaletteClick(e));
+    this.boardCanvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    this.paletteCanvas.addEventListener("contextmenu", (e) => e.preventDefault());
+    this.boardCanvas.addEventListener("wheel", (e) => this.handleWheel(e), { passive: false });
+    this.paletteCanvas.addEventListener("wheel", (e) => this.handleWheel(e), { passive: false });
+    window.addEventListener("keydown", (e) => this.handleKeyDown(e));
+  }
+
+  handlePaletteClick(e) {
+    const nMosaic = this.nMosaic;
+    const rect = this.paletteCanvas.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    const swatchSize = 44;
+    const gap = 10;
+    const spacing = swatchSize + gap;
+
+    // Pencil-mode toggle button at the bottom of the palette.
+    const buttonSize = 44;
+    const pencilX = (this.renderer.PALETTE_WIDTH - buttonSize) / 2;
+    const pencilY = this.renderer.PALETTE_HEIGHT - buttonSize - 15;
+    if (
+      x >= pencilX - 5 &&
+      x <= pencilX + buttonSize + 5 &&
+      y >= pencilY - 5 &&
+      y <= pencilY + buttonSize + 5
+    ) {
+      nMosaic.pencilMode = !nMosaic.pencilMode;
+      return;
+    }
+
+    const totalHeight = nMosaic.BOARD_COLORS * spacing - gap;
+    const startX = (this.renderer.PALETTE_WIDTH - swatchSize) / 2;
+    const startY = (this.renderer.PALETTE_HEIGHT - totalHeight) / 2;
+
+    if (x < startX - 5 || x > startX + swatchSize + 5) return;
+
+    const relativeY = y - startY;
+    const index = Math.floor(relativeY / spacing);
+    const offsetInSwatch = relativeY - index * spacing;
+    if (
+      index < 0 ||
+      index >= nMosaic.BOARD_COLORS ||
+      offsetInSwatch < -5 ||
+      offsetInSwatch > swatchSize + 5
+    )
+      return;
+
+    nMosaic.selectedColor = index;
+  }
+
+  changeSelectedColor(direction) {
+    const nMosaic = this.nMosaic;
+    nMosaic.selectedColor =
+      (nMosaic.selectedColor + direction + nMosaic.BOARD_COLORS) %
+      nMosaic.BOARD_COLORS;
+  }
+
+  selectColorByNumber(num) {
+    const nMosaic = this.nMosaic;
+    if (num >= 1 && num <= nMosaic.BOARD_COLORS) {
+      nMosaic.selectedColor = num - 1;
+    }
+  }
+
+  handleKeyDown(e) {
+    // Don't steal digits typed into form fields (the dashboard is full of
+    // them); on the game page this only skips the colour switch while the
+    // player is editing the size / seed fields.
+    const target = e.target;
+    if (target instanceof HTMLElement) {
+      const tag = target.tagName;
+      if (
+        tag === "INPUT" ||
+        tag === "TEXTAREA" ||
+        tag === "SELECT" ||
+        target.isContentEditable
+      )
+        return;
+    }
+    if (e.key >= "1" && e.key <= "9") {
+      this.selectColorByNumber(parseInt(e.key, 10));
+    }
+  }
+
+  handleWheel(e) {
+    e.preventDefault();
+    if (e.deltaY > 0) {
+      this.changeSelectedColor(1);
+    } else {
+      this.changeSelectedColor(-1);
+    }
+  }
+
+  paintAt(x, y) {
+    const { nMosaic, renderer } = this;
+    const squareWidth = renderer.WIDTH / nMosaic.BOARD_WIDTH;
+    const squareHeight = renderer.HEIGHT / nMosaic.BOARD_HEIGHT;
+
+    const col = Math.floor(x / squareWidth);
+    const row = Math.floor(y / squareHeight);
+
+    const cell = nMosaic.getCell(row, col);
+    if (cell === null || !cell.included) return;
+
+    let changed;
+    if (nMosaic.pencilMode) {
+      if (this.paintButton === 2) {
+        changed = cell.pencilMarks.delete(nMosaic.selectedColor);
+      } else if (this.paintButton === 0) {
+        cell.pencilMarks.add(nMosaic.selectedColor);
+        changed = true;
+      }
+    } else if (this.paintButton === 2) {
+      changed = cell.color !== null;
+      cell.color = null;
+    } else if (this.paintButton === 0) {
+      changed = cell.color !== nMosaic.selectedColor;
+      cell.color = nMosaic.selectedColor;
+      cell.pencilMarks.clear();
+    }
+    if (!changed) return;
+
+    // Any modification resumes play even after a win, so the player can
+    // erase and keep experimenting instead of being stuck on "YOU WIN".
+    nMosaic.puzzleComplete = false;
+    if (!nMosaic.pencilMode) {
+      const allCluesValid = nMosaic.clues.every((clue) => {
+        const clueCell = nMosaic.getCell(clue.row, clue.col);
+        if (!clueCell) return false;
+        const guessCount = clueCell.neighbors.filter(
+          (neighbor) => neighbor.color === clue.color,
+        ).length;
+        return guessCount === clue.count;
+      });
+      if (
+        nMosaic.cells.every((cell) => !cell.included || cell.color !== null) &&
+        allCluesValid
+      ) {
+        nMosaic.puzzleComplete = true;
+      }
+    }
+    this.onChange();
+  }
+
+  startPaint(e) {
+    this.isPainting = true;
+    this.paintButton = e.button;
+    const rect = this.boardCanvas.getBoundingClientRect();
+    this.paintAt(e.clientX - rect.left, e.clientY - rect.top);
+  }
+
+  continuePaint(e) {
+    if (!this.isPainting) return;
+    const rect = this.boardCanvas.getBoundingClientRect();
+    this.paintAt(e.clientX - rect.left, e.clientY - rect.top);
+  }
+
+  endPaint() {
+    this.isPainting = false;
+  }
+}
+
 function nMosaicMain() {
   const regenerateButton = document.getElementById(
     "n_mosaic_regenerate",
@@ -442,151 +624,9 @@ function nMosaicMain() {
   seedInput.value = String(nMosaic.seed);
   const renderer = new SquareGridNMosaicRenderer(canvas, paletteCanvas);
 
-  function handlePaletteClick(e) {
-    const rect = paletteCanvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const swatchSize = 44;
-    const gap = 10;
-    const spacing = swatchSize + gap;
-
-    // Pencil-mode toggle button at the bottom of the palette.
-    const buttonSize = 44;
-    const pencilX = (renderer.PALETTE_WIDTH - buttonSize) / 2;
-    const pencilY = renderer.PALETTE_HEIGHT - buttonSize - 15;
-    if (
-      x >= pencilX - 5 &&
-      x <= pencilX + buttonSize + 5 &&
-      y >= pencilY - 5 &&
-      y <= pencilY + buttonSize + 5
-    ) {
-      nMosaic.pencilMode = !nMosaic.pencilMode;
-      return;
-    }
-
-    const totalHeight = nMosaic.BOARD_COLORS * spacing - gap;
-    const startX = (renderer.PALETTE_WIDTH - swatchSize) / 2;
-    const startY = (renderer.PALETTE_HEIGHT - totalHeight) / 2;
-
-    if (x < startX - 5 || x > startX + swatchSize + 5) return;
-
-    const relativeY = y - startY;
-    const index = Math.floor(relativeY / spacing);
-    const offsetInSwatch = relativeY - index * spacing;
-    if (
-      index < 0 ||
-      index >= nMosaic.BOARD_COLORS ||
-      offsetInSwatch < -5 ||
-      offsetInSwatch > swatchSize + 5
-    )
-      return;
-
-    nMosaic.selectedColor = index;
-  }
-
-  function changeSelectedColor(direction) {
-    nMosaic.selectedColor =
-      (nMosaic.selectedColor + direction + nMosaic.BOARD_COLORS) %
-      nMosaic.BOARD_COLORS;
-  }
-
-  function selectColorByNumber(num) {
-    if (num >= 1 && num <= nMosaic.BOARD_COLORS) {
-      nMosaic.selectedColor = num - 1;
-    }
-  }
-
-  function handleKeyDown(e) {
-    if (e.key >= "1" && e.key <= "9") {
-      selectColorByNumber(parseInt(e.key, 10));
-    }
-  }
-
-  window.addEventListener("keydown", handleKeyDown);
-
-  function handleWheel(e) {
-    e.preventDefault();
-    if (e.deltaY > 0) {
-      changeSelectedColor(1);
-    } else {
-      changeSelectedColor(-1);
-    }
-  }
-
-  let isPainting = false;
-  let paintButton = 0;
-
-  function paintAt(x, y) {
-    if (nMosaic.puzzleComplete) return;
-    const squareWidth = renderer.WIDTH / nMosaic.BOARD_WIDTH;
-    const squareHeight = renderer.HEIGHT / nMosaic.BOARD_HEIGHT;
-
-    const col = Math.floor(x / squareWidth);
-    const row = Math.floor(y / squareHeight);
-
-    const cell = nMosaic.getCell(row, col);
-    if (cell !== null && cell.included) {
-      if (nMosaic.pencilMode) {
-        if (paintButton === 2) {
-          cell.pencilMarks.delete(nMosaic.selectedColor);
-        } else if (paintButton === 0) {
-          cell.pencilMarks.add(nMosaic.selectedColor);
-        }
-        return;
-      }
-      if (paintButton === 2) {
-        cell.color = null;
-      } else if (paintButton === 0) {
-        cell.color = nMosaic.selectedColor;
-        cell.pencilMarks.clear();
-      }
-
-      const allCluesValid = nMosaic.clues.every((clue) => {
-        const clueCell = nMosaic.getCell(clue.row, clue.col);
-        if (!clueCell) return false;
-        const guessCount = clueCell.neighbors.filter(
-          (neighbor) => neighbor.color === clue.color,
-        ).length;
-        return guessCount === clue.count;
-      });
-      if (
-        nMosaic.cells.every((cell) => !cell.included || cell.color !== null) &&
-        allCluesValid
-      ) {
-        nMosaic.puzzleComplete = true;
-      }
-    }
-  }
-
-  function startPaint(e) {
-    isPainting = true;
-    paintButton = e.button;
-    const rect = canvas.getBoundingClientRect();
-    paintAt(e.clientX - rect.left, e.clientY - rect.top);
-  }
-
-  function continuePaint(e) {
-    if (!isPainting) return;
-    const rect = canvas.getBoundingClientRect();
-    paintAt(e.clientX - rect.left, e.clientY - rect.top);
-  }
-
-  function endPaint() {
-    isPainting = false;
-  }
-
-  canvas.addEventListener("mousedown", startPaint);
-  canvas.addEventListener("mousemove", continuePaint);
-  window.addEventListener("mouseup", endPaint);
-
-  paletteCanvas.addEventListener("mousedown", handlePaletteClick);
-
-  canvas.addEventListener("contextmenu", (e) => e.preventDefault());
-  paletteCanvas.addEventListener("contextmenu", (e) => e.preventDefault());
-
-  canvas.addEventListener("wheel", handleWheel, { passive: false });
-  paletteCanvas.addEventListener("wheel", handleWheel, { passive: false });
+  // All interaction (painting, palette, keyboard, wheel) lives in
+  // NMosaicGameController so the test dashboard sandbox can reuse it.
+  new NMosaicGameController(renderer, nMosaic, canvas, paletteCanvas);
 
   function shareUrl() {
     const params = new URLSearchParams({

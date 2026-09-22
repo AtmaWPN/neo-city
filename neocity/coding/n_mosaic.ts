@@ -8,6 +8,11 @@
 // 2. Puzzle Seeds
 // 3. Make all Puzzle Generation Async and add a loading bar
 // 4. Define Proper Difficulty Settings
+//    Beginner: SR or SCR
+//    Intermediate: LC, SSR
+//    Advanced: Full TNS
+//    Expert: Implied Subsets
+//    Grandmaster: SAT
 // 5. Hint System
 // 6. THAT'S IT. ONCE THOSE ARE DONE THIS PROJECT IS OFFICIALLY IN "1.0"
 
@@ -136,12 +141,12 @@ class NMosaic {
   recipesApplied: number = 0;
 
   constructor(
-    height: number = 9,
-    width: number = 9,
-    colors: number = 2,
-    fraction: number = 1.0,
+    height: number = 10,
+    width: number = 10,
+    colors: number = 3,
+    fraction: number = 0.8,
     difficulty: string = "random",
-    seed?: number,
+    seed: number = NMosaic.randomSeed(),
   ) {
     this.BOARD_HEIGHT = height;
     this.BOARD_WIDTH = width;
