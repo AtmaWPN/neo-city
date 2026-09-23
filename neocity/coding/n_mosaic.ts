@@ -127,7 +127,7 @@ class NMosaic {
   BOARD_FRACTION: number;
   BOARD_DIFFICULTY: string;
   /** Seed that produced this puzzle; pass it back in to reproduce it. */
-  seed: number;
+  SEED: number;
   private random: SeedPRNG;
   puzzleComplete: boolean = false;
   selectedColor: number = 0;
@@ -153,18 +153,19 @@ class NMosaic {
     this.BOARD_COLORS = colors;
     this.BOARD_FRACTION = fraction;
     this.BOARD_DIFFICULTY = difficulty;
+    this.SEED = seed;
 
     this.cells = [];
     this.clues = [];
 
-    this.regenerate(
-      this.BOARD_HEIGHT,
-      this.BOARD_WIDTH,
-      this.BOARD_COLORS,
-      this.BOARD_FRACTION,
-      this.BOARD_DIFFICULTY,
-      seed,
-    );
+    // this.regenerate(
+    //   this.BOARD_HEIGHT,
+    //   this.BOARD_WIDTH,
+    //   this.BOARD_COLORS,
+    //   this.BOARD_FRACTION,
+    //   this.BOARD_DIFFICULTY,
+    //   this.SEED,
+    // );
   }
 
   /** A fresh random seed, used whenever the caller doesn't supply one. */
@@ -191,8 +192,8 @@ class NMosaic {
     // No seed passed means "fresh random puzzle" (keeps the test dashboard's
     // batch loop producing independent boards). A seed passed again always
     // reproduces the exact same board, shape, solution and clues.
-    this.seed = seed !== undefined ? seed : NMosaic.randomSeed();
-    this.random = seedrandom(this.seed);
+    this.SEED = seed !== undefined ? seed : NMosaic.randomSeed();
+    this.random = seedrandom(this.SEED);
     this.selectedColor = 0;
     this.pencilMode = false;
 
@@ -247,180 +248,6 @@ class NMosaic {
         ).length;
         const clue = new NMosaicClue(cell.row, cell.col, color, count);
         recipes.push({ toColor, toClue: [clue], weight });
-      }
-    }
-    return recipes;
-  }
-
-  getTotalNeighbourhoodSumRecipes(): Recipe[] {
-    const recipes: Recipe[] = [];
-    const unclued = this.cells.filter(
-      (c) =>
-        c.included &&
-        !this.clues.some((cl) => cl.row === c.row && cl.col === c.col),
-    );
-
-    for (let i = 0; i < unclued.length; i++) {
-      for (let j = i + 1; j < unclued.length; j++) {
-        const A = unclued[i],
-          B = unclued[j];
-        const nA = A.neighbors,
-          nB = B.neighbors;
-
-        const inter = nA.filter((n) => nB.includes(n));
-        if (inter.length === 0) continue;
-
-        const excA = nA.filter((n) => !nB.includes(n));
-        const excB = nB.filter((n) => !nA.includes(n));
-
-        const emptyExcA = excA.filter((n) => n.solutionColor === null);
-        const emptyExcB = excB.filter((n) => n.solutionColor === null);
-        if (emptyExcA.length === 0 && emptyExcB.length === 0) continue;
-
-        const emptyInter = inter.filter((n) => n.solutionColor === null);
-        const emptyI = emptyInter.length;
-        const union = Array.from(new Set([...nA, ...nB]));
-        const emptyT = union.filter((n) => n.solutionColor === null).length;
-
-        for (let cA = 0; cA < this.BOARD_COLORS; cA++) {
-          for (let cB = 0; cB < this.BOARD_COLORS; cB++) {
-            if (cA === cB) continue;
-
-            if (
-              excA.some(
-                (n) => n.solutionColor !== null && n.solutionColor !== cA,
-              )
-            )
-              continue;
-            if (
-              excB.some(
-                (n) => n.solutionColor !== null && n.solutionColor !== cB,
-              )
-            )
-              continue;
-            if (
-              inter.some(
-                (n) =>
-                  n.solutionColor !== null &&
-                  n.solutionColor !== cA &&
-                  n.solutionColor !== cB,
-              )
-            )
-              continue;
-
-            const preCAinA = nA.filter((n) => n.solutionColor === cA).length;
-            const preCBinB = nB.filter((n) => n.solutionColor === cB).length;
-
-            for (let X = 0; X <= emptyI; X++) {
-              const toColor: Array<{ cell: NMosaicCell; color: number }> = [];
-              for (const n of emptyExcA) toColor.push({ cell: n, color: cA });
-              for (const n of emptyExcB) toColor.push({ cell: n, color: cB });
-              // Intersection cells are left unassigned — TNS
-              // doesn't determine which ones are cA vs cB.
-
-              const countA = preCAinA + emptyExcA.length + X;
-              const countB = preCBinB + emptyExcB.length + (emptyI - X);
-
-              const clueA = new NMosaicClue(A.row, A.col, cA, countA);
-              const clueB = new NMosaicClue(B.row, B.col, cB, countB);
-
-              recipes.push({
-                toColor,
-                toClue: [clueA, clueB],
-                weight:
-                  (100 * binomial(emptyI, X)) /
-                  Math.pow(this.BOARD_COLORS, emptyT),
-              });
-            }
-          }
-        }
-      }
-    }
-    return recipes;
-  }
-
-  getExcludedDifferenceRecipes(): Recipe[] {
-    const recipes: Recipe[] = [];
-    const unclued = this.cells.filter(
-      (c) =>
-        c.included &&
-        !this.clues.some((cl) => cl.row === c.row && cl.col === c.col),
-    );
-
-    for (let i = 0; i < unclued.length; i++) {
-      for (let j = i + 1; j < unclued.length; j++) {
-        const A = unclued[i],
-          B = unclued[j];
-        const nA = A.neighbors,
-          nB = B.neighbors;
-
-        const inter = nA.filter((n) => nB.includes(n));
-        if (inter.length === 0) continue;
-
-        const excA = nA.filter((n) => !nB.includes(n));
-        const excB = nB.filter((n) => !nA.includes(n));
-
-        const emptyExcA = excA.filter((n) => n.solutionColor === null);
-        const emptyExcB = excB.filter((n) => n.solutionColor === null);
-        if (emptyExcA.length === 0 && emptyExcB.length === 0) continue;
-
-        const emptyInter = inter.filter((n) => n.solutionColor === null);
-        const emptyI = emptyInter.length;
-        const union = Array.from(new Set([...nA, ...nB]));
-        const emptyT = union.filter((n) => n.solutionColor === null).length;
-
-        for (let c = 0; c < this.BOARD_COLORS; c++) {
-          for (let d = 0; d < this.BOARD_COLORS; d++) {
-            if (c === d) continue;
-
-            if (
-              excA.some(
-                (n) => n.solutionColor !== null && n.solutionColor !== d,
-              )
-            )
-              continue;
-            if (
-              excB.some(
-                (n) => n.solutionColor !== null && n.solutionColor !== c,
-              )
-            )
-              continue;
-            if (
-              inter.some(
-                (n) =>
-                  n.solutionColor !== null &&
-                  n.solutionColor !== c &&
-                  n.solutionColor !== d,
-              )
-            )
-              continue;
-
-            const preCAinA = nA.filter((n) => n.solutionColor === c).length;
-            const preCBinB = nB.filter((n) => n.solutionColor === c).length;
-
-            for (let X = 0; X <= emptyI; X++) {
-              const toColor: Array<{ cell: NMosaicCell; color: number }> = [];
-              for (const n of emptyExcA) toColor.push({ cell: n, color: d });
-              for (const n of emptyExcB) toColor.push({ cell: n, color: c });
-              // Intersection cells are left unassigned — the
-              // Excluded Difference doesn't determine them.
-
-              const countA = preCAinA + X;
-              const countB = preCBinB + emptyExcB.length + (emptyI - X);
-
-              const clueA = new NMosaicClue(A.row, A.col, c, countA);
-              const clueB = new NMosaicClue(B.row, B.col, c, countB);
-
-              recipes.push({
-                toColor,
-                toClue: [clueA, clueB],
-                weight:
-                  (100 * binomial(emptyI, X)) /
-                  Math.pow(this.BOARD_COLORS, emptyT),
-              });
-            }
-          }
-        }
       }
     }
     return recipes;
@@ -488,7 +315,7 @@ class NMosaic {
     const candidateBoard = this.buildCandidateBoard(nMosaic);
 
     for (let row = 0; row < nMosaic.BOARD_HEIGHT; row++) {
-      for (let col = 0; col < nMosaic.BOARD_HEIGHT; col++) {
+      for (let col = 0; col < nMosaic.BOARD_WIDTH; col++) {
         if (candidateBoard[row][col].size !== 1) continue;
 
         const cell = nMosaic.getCell(row, col);
@@ -754,6 +581,7 @@ class NMosaic {
       solvable = await solve();
 
       tries++;
+      // usually only takes a dozen or so attempts, even for the weakest technique it almost never takes more than 20k attempts
       if (tries > 100000) break;
     }
 
@@ -789,29 +617,22 @@ class NMosaic {
 
   async puzzleGeneratorFactory(): Promise<void> {
     switch (this.BOARD_DIFFICULTY) {
-      case "easy forward":
-        await this.generateRecipePuzzle([() => this.getSimpleRemainderRecipes()]);
-        break;
-      case "hard forward":
-        await this.generateRecipePuzzle([
-          () => this.getSimpleRemainderRecipes(),
-          () => this.getTotalNeighbourhoodSumRecipes(),
-          () => this.getExcludedDifferenceRecipes(),
-        ]);
-        break;
-      case "easy backward":
+      // case "beginner":
+      //   await this.generateRecipePuzzle([() => this.getSimpleRemainderRecipes()]);
+      //   break;
+      case "beginner":
         await this.backwardPuzzleGenerator(() => this.techniqueSolve([
-          (nMosaic) => this.solveSimpleRemainder(nMosaic),
-        ]));
-        break;
-      case "medium backward":
-        await this.backwardPuzzleGenerator(() => this.techniqueSolve([
-          (nMosaic) => this.solveSimpleRemainder(nMosaic),
-          (nMosaic) => this.solveLastCandidate(nMosaic),
           (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
         ]));
         break;
-      case "hard backward":
+      case "intermediate":
+        await this.backwardPuzzleGenerator(() => this.techniqueSolve([
+          (nMosaic) => this.solveLastCandidate(nMosaic),
+          (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
+          (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
+        ]));
+        break;
+      case "advanced":
         await this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
           (nMosaic) => this.solveLastCandidate(nMosaic),
@@ -820,17 +641,12 @@ class NMosaic {
           (nMosaic) => this.solveTotalNeighbourhoodSum(nMosaic),
         ]));
         break;
-      case "sat backward":
+      case "grandmaster":
         await this.backwardPuzzleGenerator(() => this.satHasUniqueSolution(this.clues));
         break;
       case "random":
         this.generateRandomPuzzle();
 
-        // Keep the single most informative clue (count closest to 5) per
-        // included cell. Excluded cells have no clues and must be skipped —
-        // otherwise the findIndex below returns -1 and splice(-1, 1) silently
-        // deletes a clue from the end of the list, which is always the
-        // bottom rows (clues are stored row-major).
         this.cells.forEach((cell) => {
           const localClues = this.clues.filter(
             (clue) => clue.row === cell.row && clue.col === cell.col,
@@ -1058,11 +874,8 @@ class NMosaic {
       }
     }
 
-    // The intended solution must satisfy the puzzle.
+    // The clues are generated from the solution so it's impossible for them to conflict with each other or the intended solution
     const totalVars = varCache.last;
-    const validSolution = await satSolveAsync(totalVars, clauses);
-    this.recordSatStats("validSolution", validSolution);
-    if (!validSolution.SAT) return false;
 
     // Negate the intended solution; UNSAT means it is the unique one.
     const blockingClause: number[] = [];

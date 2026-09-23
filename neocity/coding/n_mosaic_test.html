@@ -52,13 +52,12 @@
         <label>Shape Fraction <input type="number" id="nmt_fraction" value="0.75" min="0.05" max="1.0" step="0.05"></label>
         <label>Difficulty
           <select id="nmt_difficulty">
-            <option value="easy forward">easy forward</option>
-            <option value="easy backward">easy backward</option>
-            <option value="medium backward">medium backward</option>
-            <option value="hard forward">hard forward</option>
-            <option value="hard backward">hard backward</option>
-            <option value="sat backward">sat backward</option>
-            <option value="random">random</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+            <option value="expert">Expert</option>
+            <option value="grandmaster">Grandmaster</option>
+            <option value="random">Random</option>
           </select>
         </label>
       </div>
@@ -72,9 +71,8 @@
       </div>
       <div class="nmt-controls">
         <span>Generate with:</span>
-        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_techniques" value="techniques" checked> techniques</label>
-        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_easyforward" value="easy forward"> easy forward</label>
-        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_hardforward" value="hard forward"> hard forward</label>
+        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_preset" value="preset" checked> difficulty preset</label>
+        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_techniques" value="techniques"> custom techniques</label>
         <label><input type="radio" name="nmt_genmethod" id="nmt_gen_sat" value="sat"> sat backward</label>
       </div>
       <div class="nmt-controls" id="nmt_gentech_row">
@@ -114,6 +112,27 @@
     </div>
 
     <div class="nmt-panel">
+      <h4>Generation Benchmark</h4>
+      <p class="nmt-status">
+        Runs the preset generator a configurable number of times (Runs per cell below) per difficulty
+        (beginner, intermediate, advanced, expert, grandmaster, random) for
+        5&times;5, 10&times;10, 15&times;15 and 20&times;20 boards, then averages the wall-clock generation time per
+        difficulty&times;size. Colors and Shape Fraction come from the Board Parameters panel; 20&times;20 advanced/grandmaster
+        runs are slow, so keep Cancel() handy. Note: "expert" has no generator registered yet, so it is expected to show ~0 ms.
+      </p>
+      <div class="nmt-controls">
+        <label>Runs per cell <input type="number" id="nmt_bench_runs" value="100" min="1" max="100000"></label>
+      </div>
+      <div class="nmt-buttons">
+        <button id="nmt_bench_start" class="function">Run Benchmark()</button>
+        <button id="nmt_bench_cancel" class="function">Cancel()</button>
+        <span id="nmt_bench_progress"></span>
+      </div>
+      <div class="nmt-status" id="nmt_benchstatus"></div>
+      <table id="nmt_benchtable"></table>
+    </div>
+
+    <div class="nmt-panel">
       <h4 style="display: flex; align-items: baseline; gap: 0.5em;">Manual Sandbox
         <button id="nmt_toggle_manual" class="function" style="padding: 0.05em 0.5em; font-size: 12px;">Hide()</button>
       </h4>
@@ -121,13 +140,12 @@
       <div class="nmt-controls">
         <label>Generator
           <select id="nmt_manual_genmethod">
-            <option value="easy forward">easy forward</option>
-            <option value="easy backward">easy backward</option>
-            <option value="medium backward">medium backward</option>
-            <option value="hard forward">hard forward</option>
-            <option value="hard backward">hard backward</option>
-            <option value="sat backward">sat backward</option>
-            <option value="random">random</option>
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+            <option value="expert">Expert</option>
+            <option value="grandmaster">Grandmaster</option>
+            <option value="random">Random</option>
             <option value="custom techniques">custom techniques</option>
           </select>
         </label>

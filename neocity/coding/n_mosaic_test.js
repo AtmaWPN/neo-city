@@ -64,7 +64,7 @@
       batch: batchId,
       idx,
       difficulty,
-      seed: n.seed,
+      seed: n.SEED,
       w: n.BOARD_WIDTH,
       h: n.BOARD_HEIGHT,
       colors: n.BOARD_COLORS,
@@ -77,7 +77,6 @@
       recipesApplied: n.recipesApplied,
       satCalls: finalSat.calls,
       satConsistency: finalSat.byPhase["isConsistent"] ?? 0,
-      satValid: finalSat.byPhase["validSolution"] ?? 0,
       satUnique: finalSat.byPhase["uniqueSolution"] ?? 0,
       satDecisions: finalSat.decisions,
       satConflicts: finalSat.conflicts,
@@ -119,18 +118,16 @@
     return row;
   }
   async function runBatch() {
-    if (batchRunning) return;
+    if (batchRunning || benchmarkRunning) return;
     batchRunning = true;
     batchCancelled = false;
     batchId++;
     const { w, h, colors, fraction } = readParams();
-    const genMethod = $("nmt_gen_techniques").checked
-      ? "techniques"
-      : $("nmt_gen_easyforward").checked
-        ? "easy forward"
-        : $("nmt_gen_hardforward").checked
-          ? "hard forward"
-          : "sat";
+    const genMethod = $("nmt_gen_preset").checked
+      ? "preset"
+      : $("nmt_gen_techniques").checked
+        ? "techniques"
+        : "sat";
     const solveSat = $("nmt_solve_sat").checked;
     const genTechs = genTechniques();
     const solveTechs = solveTechniques();
@@ -147,9 +144,11 @@
       return;
     }
     $("nmt_methodwarn").textContent = "";
-    const genLabel = genMethod === "techniques"
-      ? "backward[" + genTechs.map((t) => t.key).join("+") + "]"
-      : genMethod;
+    const genLabel = genMethod === "preset"
+      ? $("nmt_difficulty").value
+      : genMethod === "techniques"
+        ? "backward[" + genTechs.map((t) => t.key).join("+") + "]"
+        : "sat";
     const solveLabel = solveSat
       ? "sat"
       : "techniques[" + solveTechs.map((t) => t.key).join("+") + "]";
@@ -163,11 +162,10 @@
     for (let i = 0; i < count && !batchCancelled; i++) {
       const t0 = performance.now();
       const n = new window.NMosaic(1, 1, 2, 1, "random");
-      if (genMethod === "easy forward" || genMethod === "hard forward") {
-        // Forward generation builds the puzzle from an empty board, so let
-        // regenerate() drive it directly rather than pre-filling the random
-        // board shape (which would leave solution colors already assigned).
-        await n.regenerate(w, h, colors, fraction, genMethod);
+      if (genMethod === "preset") {
+        // Let the difficulty's own factory recipe drive generation, exactly
+        // as the game page does.
+        await n.regenerate(w, h, colors, fraction, $("nmt_difficulty").value);
       } else {
         // Set up the board shape first ("random" is the cheapest way), then
         // run backward generation with exactly the chosen generation solver.
@@ -209,6 +207,120 @@
     } else {
       statusEl.textContent = `done: ${batchRows.length} puzzle(s) in batch #${batchId}`;
     }
+  }
+  // ─── Puzzle Generation Benchmark ─────────────────────────────────────
+  // Benchmarks a configurable number (Runs per cell input, default 100) of
+  // generations of every difficulty preset per board size, averaged and
+  // shown as a difficulty x size table. "expert" is not wired up in
+  // NMosaic.puzzleGeneratorFactory yet (it hits the default no-op branch and
+  // generates an empty board), so it is expected to register ~0 ms.
+  const BENCH_SIZES = [5, 10, 15, 20];
+  const BENCH_DEFAULT_RUNS = 100;
+  function benchRuns() {
+    const v = parseInt($("nmt_bench_runs").value, 10);
+    return Number.isFinite(v) && v >= 1 ? v : BENCH_DEFAULT_RUNS;
+  }
+  const BENCH_DIFFICULTIES = [
+    "beginner",
+    "intermediate",
+    "advanced",
+    "expert",
+    "grandmaster",
+    "random",
+  ];
+  let benchmarkRunning = false;
+  let benchmarkCancelled = false;
+  // benchResults[difficulty][size] = { n, totalMs, bestMs, worstMs }
+  let benchResults = {};
+  function fmtMs(ms) {
+    if (!Number.isFinite(ms)) return "\u2014";
+    if (ms < 10) return `${ms.toFixed(1)} ms`;
+    if (ms < 1000) return `${Math.round(ms)} ms`;
+    return `${(ms / 1000).toFixed(1)} s`;
+  }
+  function benchTable() {
+    const head =
+      `<tr><th class="l">difficulty</th>` +
+      BENCH_SIZES.map((s) => `<th>${s}\u00d7${s}</th>`).join("") +
+      `<th>avg</th></tr>`;
+    const body = BENCH_DIFFICULTIES.map((diff) => {
+      const cells = BENCH_SIZES.map((s) => {
+        const c = benchResults[diff]?.[s];
+        if (!c || c.n === 0) return { text: "\u2014", title: "" };
+        const avg = c.totalMs / c.n;
+        return {
+          text: fmtMs(avg),
+          title:
+            `${c.n} runs \u00b7 avg ${fmtMs(avg)} \u00b7 best ${fmtMs(c.bestMs)} \u00b7 worst ${fmtMs(c.worstMs)}`,
+        };
+      });
+      const all = BENCH_SIZES
+        .map((s) => benchResults[diff]?.[s])
+        .filter((c) => c && c.n > 0);
+      const avgAll = all.length
+        ? fmtMs(all.reduce((acc, c) => acc + c.totalMs / c.n, 0) / all.length)
+        : "\u2014";
+      return (
+        `<tr><td class="l">${diff}</td>` +
+        cells.map((c) => `<td title="${c.title}">${c.text}</td>`).join("") +
+        `<td>${avgAll}</td>`
+      );
+    }).join("");
+    $("nmt_benchtable").innerHTML = `<thead>${head}</thead><tbody>${body}</tbody>`;
+  }
+  async function runBenchmark() {
+    if (benchmarkRunning || batchRunning) return;
+    benchmarkRunning = true;
+    benchmarkCancelled = false;
+    $("nmt_bench_start").disabled = true;
+    const { colors, fraction } = readParams();
+    // Snapshot the runs-per-cell setting once so mid-run edits don't skew it.
+    const runs = benchRuns();
+    const totalRuns = BENCH_SIZES.length * BENCH_DIFFICULTIES.length * runs;
+    let run = 0;
+    const tStart = performance.now();
+    const statusEl = $("nmt_benchstatus");
+    const progressEl = $("nmt_bench_progress");
+    benchResults = {};
+    statusEl.textContent = "starting benchmark\u2026";
+    benchTable();
+    outer:
+    for (const size of BENCH_SIZES) {
+      for (const diff of BENCH_DIFFICULTIES) {
+        const agg = (benchResults[diff] ??= {})[size] = {
+          n: 0,
+          totalMs: 0,
+          bestMs: Number.POSITIVE_INFINITY,
+          worstMs: 0,
+        };
+        for (let i = 0; i < runs; i++) {
+          if (benchmarkCancelled) break outer;
+          const t0 = performance.now();
+          // Fresh instance per run, and regenerate() picks a new random seed
+          // each time, so we measure typical (not cached) generation cost.
+          const nMosaic = new window.NMosaic(size, size, colors, fraction, diff);
+          await nMosaic.regenerate(size, size, colors, fraction, diff);
+          const ms = performance.now() - t0;
+          agg.n++;
+          agg.totalMs += ms;
+          agg.bestMs = Math.min(agg.bestMs, ms);
+          agg.worstMs = Math.max(agg.worstMs, ms);
+          run++;
+          progressEl.textContent =
+            `run ${run}/${totalRuns} \u00b7 ${size}\u00d7${size} ${diff} ${i + 1}/${runs}`;
+          statusEl.textContent =
+            `current avg ${fmtMs(agg.totalMs / agg.n)} (best ${fmtMs(agg.bestMs)}, worst ${fmtMs(agg.worstMs)}) \u00b7 elapsed ${fmtMs(performance.now() - tStart)}`;
+          benchTable();
+          await tick();
+        }
+      }
+    }
+    $("nmt_bench_start").disabled = false;
+    benchmarkRunning = false;
+    progressEl.textContent = `done \u2014 ${run}/${totalRuns} runs in ${fmtMs(performance.now() - tStart)}`;
+    statusEl.textContent = benchmarkCancelled
+      ? "benchmark cancelled (partial results shown)"
+      : "benchmark complete \u2014 averages are per difficulty and size";
   }
   const TABLE_COLUMNS = [
     { key: "idx", label: "#", num: true },
@@ -277,7 +389,6 @@
     { key: "recipesApplied", label: "recipes_applied" },
     { key: "satCalls", label: "sat_calls" },
     { key: "satConsistency", label: "sat_consistency_calls" },
-    { key: "satValid", label: "sat_valid_calls" },
     { key: "satUnique", label: "sat_unique_calls" },
     { key: "satDecisions", label: "sat_decisions" },
     { key: "satConflicts", label: "sat_conflicts" },
@@ -447,7 +558,7 @@
       );
     }
     // Reflect the seed genuinely used so the board can be reproduced.
-    seedField.value = String(manual.seed);
+    seedField.value = String(manual.SEED);
     manualRenderer.showSolution = false;
     logLine(`done: ${manual.clues.length} clues, ${manual.cells.filter((c) => c.included).length} cells` + (manual.randomPuzzleTries > 0 ? `, solvable random pattern found in ${manual.randomPuzzleTries} tries` : ""));
     updateManualStatus();
@@ -492,13 +603,19 @@
   $("nmt_start").onclick = () => {
     void runBatch();
   };
+  $("nmt_bench_start").onclick = () => {
+    void runBenchmark();
+  };
+  $("nmt_bench_cancel").onclick = () => {
+    benchmarkCancelled = true;
+  };
   $("nmt_cancel").onclick = () => {
     batchCancelled = true;
   };
   $("nmt_csv").onclick = downloadCsv;
   $("nmt_csvcopy").onclick = copyCsvToClipboard;
   $("nmt_clear").onclick = () => {
-    if (batchRunning) return;
+    if (batchRunning || benchmarkRunning) return;
     batchRows.length = 0;
     $("nmt_progress").textContent = "";
     $("nmt_batchstatus").textContent = "table cleared";
@@ -540,9 +657,8 @@
     $("nmt_stech_row").style.opacity = useSat ? "0.45" : "1";
     $("nmt_methodwarn").textContent = "";
   };
+  $("nmt_gen_preset").onclick = syncMethodUI;
   $("nmt_gen_techniques").onclick = syncMethodUI;
-  $("nmt_gen_easyforward").onclick = syncMethodUI;
-  $("nmt_gen_hardforward").onclick = syncMethodUI;
   $("nmt_gen_sat").onclick = syncMethodUI;
   $("nmt_solve_techniques").onclick = syncMethodUI;
   $("nmt_solve_sat").onclick = syncMethodUI;
@@ -558,4 +674,15 @@
   requestAnimationFrame(loop);
   updateManualStatus();
   logLine("ready \u2014 pick a generation method and a solve method, then Run Batch().");
+
+  // The NMosaic constructor no longer builds a board (regenerate() is async
+  // and must be driven explicitly), so generate the sandbox's initial board
+  // by hand once the page has settled.
+  (async () => {
+    await manual.regenerate(9, 9, 2, 0.75, "random");
+    logLine(
+      `initial sandbox board: ${manual.clues.length} clues, ${manual.cells.filter((c) => c.included).length} cells`,
+    );
+    updateManualStatus();
+  })();
 })();
