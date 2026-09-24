@@ -7,12 +7,20 @@
 // 1. Explore Solving Techniques and using SAT Solver to measure difficulty
 // 2. Puzzle Seeds
 // 3. Make all Puzzle Generation Async and add a loading bar
+//    Inefficiencies:
+//      Removing Clues one at a time (especially at the beginning)
+//      Erasing solver progress for each removed clue
+//      Rebuilding candidate board for each relevant technique call
+//      SSR + TNS clues^2 search
+//      Neighbours as array instead of Set
+//      Reevaluating full CNF for each removed clue (SAT only)
 // 4. Define Proper Difficulty Settings
-//    Beginner: SR or SCR
-//    Intermediate: LC, SSR
-//    Advanced: Full TNS
-//    Expert: Implied Subsets
-//    Grandmaster: SAT
+//    Beginner: SR
+//    Intermediate: LC, SCR
+//    Advanced: SSR
+//    Expert: Full TNS
+//    Grandmaster: Implied Clues
+//    Deep Blue: SAT
 // 5. Hint System
 // 6. THAT'S IT. ONCE THOSE ARE DONE THIS PROJECT IS OFFICIALLY IN "1.0"
 
@@ -46,7 +54,7 @@ class NMosaicCell {
   col: number;
   color: number | null;
   solutionColor: number | null;
-  neighbors: NMosaicCell[];
+  neighbors: Set<NMosaicCell>;
   included: boolean;
   pencilMarks: Set<number>;
 
@@ -55,7 +63,7 @@ class NMosaicCell {
     this.col = col;
     this.color = null;
     this.solutionColor = null;
-    this.neighbors = [];
+    this.neighbors = new Set();
     this.included = false;
     this.pencilMarks = new Set();
   }
@@ -120,7 +128,7 @@ function shuffleInPlace<T>(items: T[], rng: () => number): void {
 
 class NMosaic {
   cells: Array<NMosaicCell>;
-  clues: Array<NMosaicClue>;
+  clueMap: Map<NMosaicCell, NMosaicClue[]>;
   BOARD_HEIGHT: number;
   BOARD_WIDTH: number;
   BOARD_COLORS: number;
@@ -156,16 +164,7 @@ class NMosaic {
     this.SEED = seed;
 
     this.cells = [];
-    this.clues = [];
-
-    // this.regenerate(
-    //   this.BOARD_HEIGHT,
-    //   this.BOARD_WIDTH,
-    //   this.BOARD_COLORS,
-    //   this.BOARD_FRACTION,
-    //   this.BOARD_DIFFICULTY,
-    //   this.SEED,
-    // );
+    this.clueMap = new Map();
   }
 
   /** A fresh random seed, used whenever the caller doesn't supply one. */
@@ -182,7 +181,7 @@ class NMosaic {
     colors: number = 2,
     fraction: number = 0.5,
     difficulty: string = "random",
-    seed?: number,
+    seed: number = NMosaic.randomSeed(),
   ) {
     this.BOARD_HEIGHT = height;
     this.BOARD_WIDTH = width;
@@ -192,7 +191,7 @@ class NMosaic {
     // No seed passed means "fresh random puzzle" (keeps the test dashboard's
     // batch loop producing independent boards). A seed passed again always
     // reproduces the exact same board, shape, solution and clues.
-    this.SEED = seed !== undefined ? seed : NMosaic.randomSeed();
+    this.SEED = seed;
     this.random = seedrandom(this.SEED);
     this.selectedColor = 0;
     this.pencilMode = false;
@@ -204,7 +203,7 @@ class NMosaic {
     this.recipesApplied = 0;
 
     this.cells = [];
-    this.clues = [];
+    this.clueMap = new Map();
     this.puzzleComplete = false;
 
     for (let row = 0; row < this.BOARD_HEIGHT; row++) {
@@ -234,7 +233,7 @@ class NMosaic {
       if (!cell.included) continue;
       if (this.clues.some((c) => c.row === cell.row && c.col === cell.col))
         continue;
-      const emptyNeighbors = cell.neighbors.filter(
+      const emptyNeighbors = [...cell.neighbors].filter(
         (n) => n.solutionColor === null,
       );
       if (emptyNeighbors.length === 0) continue;
@@ -617,22 +616,25 @@ class NMosaic {
 
   async puzzleGeneratorFactory(): Promise<void> {
     switch (this.BOARD_DIFFICULTY) {
-      // case "beginner":
-      //   await this.generateRecipePuzzle([() => this.getSimpleRemainderRecipes()]);
-      //   break;
       case "beginner":
+        // IDEA: use recipes to generate the solution and then the SR solving technique to carve it down
+          // avoids SR random generation potentially taking forever and SR recipe generation being over-determined
+        await this.generateRecipePuzzle([() => this.getSimpleRemainderRecipes()]);
+        break;
+      case "intermediate":
         await this.backwardPuzzleGenerator(() => this.techniqueSolve([
+          (nMosaic) => this.solveLastCandidate(nMosaic),
           (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
         ]));
         break;
-      case "intermediate":
+      case "advanced":
         await this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveLastCandidate(nMosaic),
           (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
           (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
         ]));
         break;
-      case "advanced":
+      case "expert":
         await this.backwardPuzzleGenerator(() => this.techniqueSolve([
           (nMosaic) => this.solveSimpleRemainder(nMosaic),
           (nMosaic) => this.solveLastCandidate(nMosaic),
@@ -642,6 +644,7 @@ class NMosaic {
         ]));
         break;
       case "grandmaster":
+      case "sat":
         await this.backwardPuzzleGenerator(() => this.satHasUniqueSolution(this.clues));
         break;
       case "random":
