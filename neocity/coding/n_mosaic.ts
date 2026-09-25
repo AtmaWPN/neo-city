@@ -11,8 +11,8 @@
 //      Removing Clues one at a time (especially at the beginning)
 //      Erasing solver progress for each removed clue
 //      Rebuilding candidate board for each relevant technique call
-//      SSR + TNS clues^2 search
-//      Neighbours as array instead of Set
+//      *SSR + TNS clues^2 search
+//      *Neighbours as array instead of Set
 //      Reevaluating full CNF for each removed clue (SAT only)
 // 4. Define Proper Difficulty Settings
 //    Beginner: SR
@@ -114,7 +114,8 @@ type SeedPRNG = {
   quick(): number; // double in [0, 1) from 32 bits
 };
 
-const seedrandom: (seed: number | string) => SeedPRNG = (Math as any).seedrandom;
+const seedrandom: (seed: number | string) => SeedPRNG = (Math as any)
+  .seedrandom;
 
 /** In-place Fisher–Yates shuffle driven by a seedable PRNG. */
 function shuffleInPlace<T>(items: T[], rng: () => number): void {
@@ -142,7 +143,11 @@ class NMosaic {
   pencilMode: boolean = false;
 
   // Instrumentation for the test dashboard (n_mosaic_test.html).
-  satStats: Array<{ phase: string; SAT: boolean; stats: Record<string, number> }> = [];
+  satStats: Array<{
+    phase: string;
+    SAT: boolean;
+    stats: Record<string, number>;
+  }> = [];
   techniqueCounts: Record<string, number> = {};
   randomPuzzleTries: number = 0;
   randomPatternFound: boolean = false;
@@ -229,10 +234,14 @@ class NMosaic {
 
   getSimpleRemainderRecipes(): Recipe[] {
     const recipes: Recipe[] = [];
+
+    this.clueMap.forEach((value, key) => {
+      value.forEach((clue) => {});
+    });
+
     for (const cell of this.cells) {
       if (!cell.included) continue;
-      if (this.clues.some((c) => c.row === cell.row && c.col === cell.col))
-        continue;
+      if ((this.clueMap.get(cell)?.length ?? 0) > 0) continue;
       const emptyNeighbors = [...cell.neighbors].filter(
         (n) => n.solutionColor === null,
       );
@@ -242,7 +251,7 @@ class NMosaic {
         const weight = 100 / Math.pow(this.BOARD_COLORS, emptyNeighbors.length);
         const toColor: Array<{ cell: NMosaicCell; color: number }> =
           emptyNeighbors.map((n) => ({ cell: n, color }));
-        const count = cell.neighbors.filter(
+        const count = [...cell.neighbors].filter(
           (n) => n.solutionColor === color || emptyNeighbors.includes(n),
         ).length;
         const clue = new NMosaicClue(cell.row, cell.col, color, count);
@@ -255,17 +264,20 @@ class NMosaic {
   solveSimpleRemainder(nMosaic: NMosaic): number {
     let applied: number = 0;
 
-    nMosaic.clues.forEach((clue) => {
-      const neighbourhood =
-        nMosaic.getCell(clue.row, clue.col)?.neighbors ?? [];
-      const adjustedClue =
-        clue.count -
-        neighbourhood.filter((cell) => cell.color === clue.color).length;
-      const emptyCells = neighbourhood.filter((cell) => cell.color === null);
-      if (emptyCells.length > 0 && adjustedClue === emptyCells.length) {
-        emptyCells.forEach((cell) => (cell.color = clue.color));
-        applied++;
-      }
+    nMosaic.clueMap.forEach((clues, cell) => {
+      clues.forEach((clue) => {
+        const neighbourhood = cell.neighbors ?? new Set();
+        const adjustedClue =
+          clue.count -
+          [...neighbourhood].filter((cell) => cell.color === clue.color).length;
+        const emptyCells = [...neighbourhood].filter(
+          (cell) => cell.color === null,
+        );
+        if (emptyCells.length > 0 && adjustedClue === emptyCells.length) {
+          emptyCells.forEach((cell) => (cell.color = clue.color));
+          applied++;
+        }
+      });
     });
 
     // console.log("Simple Remainder:", applied);
@@ -287,23 +299,23 @@ class NMosaic {
       }
     }
 
-    nMosaic.clues.forEach((clue) => {
-      const neighbourhood =
-        nMosaic.getCell(clue.row, clue.col)?.neighbors ?? [];
-      neighbourhood
-        .filter((cell) => cell.color !== null)
-        .forEach((cell) => candidateBoard[cell.row][cell.col].clear());
+    nMosaic.clueMap.forEach((clues, cell) => {
+      clues.forEach((clue) => {
+        [...cell.neighbors]
+          .filter((cell) => cell.color !== null)
+          .forEach((cell) => candidateBoard[cell.row][cell.col].clear());
 
-      if (
-        clue.count ===
-        neighbourhood.filter((cell) => cell.color === clue.color).length
-      ) {
-        neighbourhood
-          .filter((cell) => cell.color === null)
-          .forEach((cell) =>
-            candidateBoard[cell.row][cell.col].delete(clue.color),
-          );
-      }
+        if (
+          clue.count ===
+          [...cell.neighbors].filter((cell) => cell.color === clue.color).length
+        ) {
+          [...cell.neighbors]
+            .filter((cell) => cell.color === null)
+            .forEach((cell) =>
+              candidateBoard[cell.row][cell.col].delete(clue.color),
+            );
+        }
+      });
     });
 
     return candidateBoard;
@@ -313,17 +325,12 @@ class NMosaic {
     let applied: number = 0;
     const candidateBoard = this.buildCandidateBoard(nMosaic);
 
-    for (let row = 0; row < nMosaic.BOARD_HEIGHT; row++) {
-      for (let col = 0; col < nMosaic.BOARD_WIDTH; col++) {
-        if (candidateBoard[row][col].size !== 1) continue;
+    nMosaic.cells.forEach((cell) => {
+      if (candidateBoard[cell.row][cell.col].size !== 1) return;
 
-        const cell = nMosaic.getCell(row, col);
-        if (!cell) continue;
-
-        cell.color = [...candidateBoard[row][col]][0];
-        applied++;
-      }
-    }
+      cell.color = [...candidateBoard[cell.row][cell.col]][0];
+      applied++;
+    });
 
     // console.log("Last Candidate:", applied);
     nMosaic.techniqueCounts["LastCandidate"] =
@@ -335,19 +342,23 @@ class NMosaic {
     let applied: number = 0;
     const candidateBoard = this.buildCandidateBoard(nMosaic);
 
-    nMosaic.clues.forEach((clue) => {
-      const neighbourhood =
-        nMosaic.getCell(clue.row, clue.col)?.neighbors ?? [];
-      const adjustedClue =
-        clue.count -
-        neighbourhood.filter((cell) => cell.color === clue.color).length;
-      const candidateCells = neighbourhood.filter((cell) =>
-        candidateBoard[cell.row][cell.col].has(clue.color),
-      );
-      if (candidateCells.length > 0 && adjustedClue === candidateCells.length) {
-        candidateCells.forEach((cell) => (cell.color = clue.color));
-        applied++;
-      }
+    nMosaic.clueMap.forEach((clues, cell) => {
+      clues.forEach((clue) => {
+        const adjustedClue =
+          clue.count -
+          [...cell.neighbors].filter((cell) => cell.color === clue.color)
+            .length;
+        const candidateCells = [...cell.neighbors].filter((cell) =>
+          candidateBoard[cell.row][cell.col].has(clue.color),
+        );
+        if (
+          candidateCells.length > 0 &&
+          adjustedClue === candidateCells.length
+        ) {
+          candidateCells.forEach((cell) => (cell.color = clue.color));
+          applied++;
+        }
+      });
     });
 
     // console.log("Simple Candidate Remainder:", applied);
@@ -359,61 +370,66 @@ class NMosaic {
   solveSimpleSubsetRemainder(nMosaic: NMosaic): number {
     let applied: number = 0;
 
-    nMosaic.clues.forEach((clue) => {
-      const clueCell = nMosaic.getCell(clue.row, clue.col);
-      nMosaic.clues
-        .filter(
-          (subClue) =>
-            Math.abs(subClue.col - clue.col) <= 2 &&
-            Math.abs(subClue.row - clue.row) <= 2,
-        )
-        .forEach((subClue) => {
-          const clueArea =
-            clueCell?.neighbors.filter(
-              (neighbour) => neighbour.color === null,
-            ) ?? [];
-          const subClueCell = nMosaic.getCell(subClue.row, subClue.col);
-          const subClueArea =
-            subClueCell?.neighbors.filter(
-              (neighbour) => neighbour.color === null,
-            ) ?? [];
-          if (!subClueArea.every((cell) => clueArea.includes(cell))) return;
+    nMosaic.clueMap.forEach((clues, cell) => {
+      clues.forEach((clue) => {
+        for (let dRow = -2; dRow <= 2; dRow++) {
+          for (let dCol = -2; dCol <= 2; dCol++) {
+            if (dRow === 0 && dCol === 0) continue;
+            const otherCell = this.getCell(cell.row + dRow, cell.col + dCol);
 
-          const effectiveClueValue =
-            clue.count -
-            (clueCell?.neighbors.filter(
-              (neighbour) => neighbour.color === clue.color,
-            )?.length ?? 0);
-          const effectiveSubClueValue =
-            subClue.count -
-            (subClueCell?.neighbors.filter(
-              (neighbour) => neighbour.color === subClue.color,
-            )?.length ?? 0);
+            if (!otherCell) continue;
+            const subClues = nMosaic.clueMap.get(otherCell);
 
-          const clueExclusiveArea = clueArea.filter(
-            (cell) => !subClueArea.includes(cell),
-          );
-          if (clue.color === subClue.color) {
-            if (
-              clueExclusiveArea.length > 0 &&
-              effectiveClueValue - effectiveSubClueValue ===
-                clueExclusiveArea.length
-            ) {
-              applied++;
-              clueExclusiveArea.forEach((cell) => (cell.color = clue.color));
-            }
-          } else {
-            if (
-              clueExclusiveArea.length > 0 &&
-              effectiveClueValue -
-                (subClueArea.length - effectiveSubClueValue) ===
-                clueExclusiveArea.length
-            ) {
-              applied++;
-              clueExclusiveArea.forEach((cell) => (cell.color = clue.color));
-            }
+            subClues?.forEach((subClue) => {
+              const clueArea =
+                [...cell.neighbors].filter(
+                  (neighbour) => neighbour.color === null,
+                ) ?? [];
+              const subClueArea =
+                [...otherCell.neighbors].filter(
+                  (neighbour) => neighbour.color === null,
+                ) ?? [];
+              if (!subClueArea.every((cell) => clueArea.includes(cell))) return;
+
+              const effectiveClueValue =
+                clue.count -
+                ([...cell.neighbors].filter(
+                  (neighbour) => neighbour.color === clue.color,
+                )?.length ?? 0);
+              const effectiveSubClueValue =
+                subClue.count -
+                ([...otherCell.neighbors].filter(
+                  (neighbour) => neighbour.color === subClue.color,
+                )?.length ?? 0);
+
+              const clueExclusiveArea = clueArea.filter(
+                (cell) => !subClueArea.includes(cell),
+              );
+              // TODO: include candidate removal case
+              if (clue.color === subClue.color) {
+                if (
+                  clueExclusiveArea.length > 0 &&
+                  effectiveClueValue - effectiveSubClueValue ===
+                    clueExclusiveArea.length
+                ) {
+                  applied++;
+                  clueExclusiveArea.forEach((cell) => (cell.color = clue.color));
+                }
+              } else {
+                if (
+                  clueExclusiveArea.length > 0 &&
+                  effectiveClueValue -
+                    (subClueArea.length - effectiveSubClueValue) ===
+                    clueExclusiveArea.length
+                ) {
+                  applied++;
+                  clueExclusiveArea.forEach((cell) => (cell.color = clue.color));
+                }
+              }
+            })
           }
-        });
+        }
+      });
     });
 
     // console.log("Simple Subset Remainder:", applied);
@@ -425,6 +441,64 @@ class NMosaic {
   solveTotalNeighbourhoodSum(nMosaic: NMosaic): number {
     let applied = 0;
 
+    nMosaic.clueMap.forEach((clues, cell) => {
+      clues.forEach((clue) => {
+        for (let dRow = -2; dRow <= 2; dRow++) {
+          for (let dCol = -2; dCol <= 2; dCol++) {
+            if (dRow === 0 && dCol === 0) continue;
+
+            const clueARegion =
+              nMosaic.getCell(clueA.row, clueA.col)?.neighbors ?? [];
+            const clueBRegion =
+              nMosaic.getCell(clueB.row, clueB.col)?.neighbors ?? [];
+
+            const clueAOpen = clueARegion.filter((cell) => cell.color === null);
+            const clueBOpen = clueBRegion.filter((cell) => cell.color === null);
+
+            const intersection = clueAOpen.filter((cell) =>
+              clueBOpen.includes(cell),
+            );
+            const aMinusB = clueAOpen.filter((cell) => !clueBOpen.includes(cell));
+            const bMinusA = clueBOpen.filter((cell) => !clueAOpen.includes(cell));
+
+            if (!(
+              intersection.length > 0 &&
+              aMinusB.length > 0 &&
+              bMinusA.length > 0
+            ))
+              return;
+
+            const effectiveClueA =
+              clueA.count -
+              clueARegion.filter((cell) => cell.color === clueA.color).length;
+            const effectiveClueB =
+              clueB.count -
+              clueBRegion.filter((cell) => cell.color === clueB.color).length;
+
+            if (
+              clueA.color !== clueB.color &&
+              effectiveClueA + effectiveClueB ===
+                clueAOpen.length + bMinusA.length
+            ) {
+              aMinusB.forEach((cell) => (cell.color = clueA.color));
+              bMinusA.forEach((cell) => (cell.color = clueB.color));
+              applied++;
+              // TODO add implied clues for the intersection
+            } else if (clueA.color === clueB.color) {
+              if (effectiveClueA - aMinusB.length === effectiveClueB) {
+                aMinusB.forEach((cell) => (cell.color = clueA.color));
+                applied++;
+                // TODO remove candidates from the other side
+              } else if (effectiveClueB - bMinusA.length === effectiveClueA) {
+                bMinusA.forEach((cell) => (cell.color = clueB.color));
+                applied++;
+                // TODO remove candidates from the other side
+              }
+            }
+          }
+        }
+      })
+    })
     nMosaic.clues.forEach((clueA) => {
       nMosaic.clues
         .filter(
@@ -543,7 +617,9 @@ class NMosaic {
     }
   }
 
-  async techniqueSolve(techniqueSolvers: ((nMosaic: NMosaic) => number)[]): Promise<boolean> {
+  async techniqueSolve(
+    techniqueSolvers: ((nMosaic: NMosaic) => number)[],
+  ): Promise<boolean> {
     let done = false;
     while (!done) {
       done = true;
@@ -554,7 +630,8 @@ class NMosaic {
       });
     }
 
-    const solved = this.cells.every((cell) => cell.color !== null || !cell.included) &&
+    const solved =
+      this.cells.every((cell) => cell.color !== null || !cell.included) &&
       this.clues.every((clue) => {
         const neighbourhood = this.getCell(clue.row, clue.col)?.neighbors ?? [];
         return (
@@ -570,9 +647,7 @@ class NMosaic {
     return solved;
   }
 
-  async backwardPuzzleGenerator(
-    solve: () => Promise<boolean>,
-  ): Promise<void> {
+  async backwardPuzzleGenerator(solve: () => Promise<boolean>): Promise<void> {
     let tries = 0;
     let solvable = false;
     while (!solvable) {
@@ -618,34 +693,44 @@ class NMosaic {
     switch (this.BOARD_DIFFICULTY) {
       case "beginner":
         // IDEA: use recipes to generate the solution and then the SR solving technique to carve it down
-          // avoids SR random generation potentially taking forever and SR recipe generation being over-determined
-        await this.generateRecipePuzzle([() => this.getSimpleRemainderRecipes()]);
+        // avoids SR random generation potentially taking forever and SR recipe generation being over-determined
+        await this.generateRecipePuzzle([
+          () => this.getSimpleRemainderRecipes(),
+        ]);
         break;
       case "intermediate":
-        await this.backwardPuzzleGenerator(() => this.techniqueSolve([
-          (nMosaic) => this.solveLastCandidate(nMosaic),
-          (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
-        ]));
+        await this.backwardPuzzleGenerator(() =>
+          this.techniqueSolve([
+            (nMosaic) => this.solveLastCandidate(nMosaic),
+            (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
+          ]),
+        );
         break;
       case "advanced":
-        await this.backwardPuzzleGenerator(() => this.techniqueSolve([
-          (nMosaic) => this.solveLastCandidate(nMosaic),
-          (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
-          (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
-        ]));
+        await this.backwardPuzzleGenerator(() =>
+          this.techniqueSolve([
+            (nMosaic) => this.solveLastCandidate(nMosaic),
+            (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
+            (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
+          ]),
+        );
         break;
       case "expert":
-        await this.backwardPuzzleGenerator(() => this.techniqueSolve([
-          (nMosaic) => this.solveSimpleRemainder(nMosaic),
-          (nMosaic) => this.solveLastCandidate(nMosaic),
-          (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
-          (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
-          (nMosaic) => this.solveTotalNeighbourhoodSum(nMosaic),
-        ]));
+        await this.backwardPuzzleGenerator(() =>
+          this.techniqueSolve([
+            (nMosaic) => this.solveSimpleRemainder(nMosaic),
+            (nMosaic) => this.solveLastCandidate(nMosaic),
+            (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
+            (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
+            (nMosaic) => this.solveTotalNeighbourhoodSum(nMosaic),
+          ]),
+        );
         break;
       case "grandmaster":
       case "sat":
-        await this.backwardPuzzleGenerator(() => this.satHasUniqueSolution(this.clues));
+        await this.backwardPuzzleGenerator(() =>
+          this.satHasUniqueSolution(this.clues),
+        );
         break;
       case "random":
         this.generateRandomPuzzle();
@@ -662,7 +747,9 @@ class NMosaic {
               worstClue = clue;
             }
           });
-          const worstClueIndex = this.clues.findIndex((clue) => clue === worstClue);
+          const worstClueIndex = this.clues.findIndex(
+            (clue) => clue === worstClue,
+          );
           this.clues.splice(worstClueIndex, 1);
         });
         break;
