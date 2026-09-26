@@ -130,6 +130,14 @@ function shuffleInPlace<T>(items: T[], rng: () => number): void {
 class NMosaic {
   cells: Array<NMosaicCell>;
   clueMap: Map<NMosaicCell, NMosaicClue[]>;
+  /**
+   * Flat list of every clue on the board. The renderer and test dashboard
+   * consume clues as a plain array; the clueMap keyed by cell is the
+   * canonical store, so this accessor flattens it on read.
+   */
+  get clues(): Array<NMosaicClue> {
+    return [...this.clueMap.values()].flat();
+  }
   BOARD_HEIGHT: number;
   BOARD_WIDTH: number;
   BOARD_COLORS: number;

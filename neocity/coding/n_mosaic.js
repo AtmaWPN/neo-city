@@ -41,6 +41,14 @@
   class NMosaic {
     cells;
     clueMap;
+    /**
+     * Flat list of every clue on the board. The renderer and test dashboard
+     * consume clues as a plain array; the clueMap keyed by cell is the
+     * canonical store, so this accessor flattens it on read.
+     */
+    get clues() {
+      return [...this.clueMap.values()].flat();
+    }
     BOARD_HEIGHT;
     BOARD_WIDTH;
     BOARD_COLORS;

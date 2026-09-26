@@ -480,7 +480,7 @@ class NMosaicGameController {
       const allCluesValid = nMosaic.clues.every((clue) => {
         const clueCell = nMosaic.getCell(clue.row, clue.col);
         if (!clueCell) return false;
-        const guessCount = clueCell.neighbors.filter(
+        const guessCount = [...clueCell.neighbors].filter(
           (neighbor) => neighbor.color === clue.color,
         ).length;
         return guessCount === clue.count;

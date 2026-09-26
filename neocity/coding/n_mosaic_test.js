@@ -490,7 +490,7 @@
     const cluesOk = manual.clues.every((cl) => {
       const cell = manual.getCell(cl.row, cl.col);
       if (!cell) return false;
-      return cell.neighbors.filter((n) => n.color === cl.color).length === cl.count;
+      return [...cell.neighbors].filter((n) => n.color === cl.color).length === cl.count;
     });
     return allFilled && cluesOk;
   }
@@ -501,7 +501,7 @@
     for (const cl of manual.clues) {
       const cell = manual.getCell(cl.row, cl.col);
       if (!cell) continue;
-      const count = cell.neighbors.filter((n) => n.color === cl.color).length;
+      const count = [...cell.neighbors].filter((n) => n.color === cl.color).length;
       if (count !== cl.count) badClues++;
     }
     const sat = summarizeSat(manual);
