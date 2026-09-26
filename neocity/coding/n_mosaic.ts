@@ -466,9 +466,10 @@ class NMosaic {
 
     const allClues = [...nMosaic.clueMap.entries()].flatMap((entry) => entry[1]);
     const clueSet: Set<NMosaicClue> = new Set();
+    const applicationList: Set<NMosaicClue>[] = [];
     function depthFirstSearch(lastIndex: number, union: Set<NMosaicCell>, count: number) {
       if (union.size > 0 && union.size === count) {
-        // TODO: record application
+        applicationList.push(structuredClone(clueSet));
       }
 
       for (let i = lastIndex; i < allClues.length; i++) {
@@ -482,14 +483,33 @@ class NMosaic {
         if ([...clueSet].some((clue) => clue.color === nextClue.color)) continue;
 
         clueSet.add(nextClue);
-        depthFirstSearch(i + 1, union.union(clueCell.neighbors), count + effectiveClueValue)
+        depthFirstSearch(i + 1, union.union(clueCell.neighbors), count + effectiveClueValue);
         clueSet.delete(nextClue);
       }
     }
 
+    applicationList.forEach((application) => {
+      const clueCellMap: Map<NMosaicClue, Set<NMosaicCell>> = new Map();
+      application.forEach((clue) => {
+        const clueCell = nMosaic.getCell(clue.row, clue.col);
+        if (!clueCell) return;
+        clueCellMap.set(clue, clueCell.neighbors);
+      });
+      application.forEach((clue) => {
+        clueCellMap.get(clue);
+
+        const affectedCells = [...clueCellMap.entries()].reduce(
+          (prev, curr) => curr[0] !== clue ? prev.difference(curr[1]) : prev,
+          clueCellMap.get(clue) ?? new Set<NMosaicCell>()
+        );
+
+        affectedCells.forEach((cell) => cell.color = clue.color);
+      })
+    })
+
     nMosaic.techniqueCounts["TotalNeighbourhoodSum"] =
-      (nMosaic.techniqueCounts["TotalNeighbourhoodSum"] ?? 0) + applied;
-    return applied;
+      (nMosaic.techniqueCounts["TotalNeighbourhoodSum"] ?? 0) + applicationList.length;
+    return applicationList.length;
   }
 
   async generateRecipePuzzle(

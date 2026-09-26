@@ -12,7 +12,7 @@
       this.col = col;
       this.color = null;
       this.solutionColor = null;
-      this.neighbors = [];
+      this.neighbors = /* @__PURE__ */ new Set();
       this.included = false;
       this.pencilMarks = /* @__PURE__ */ new Set();
     }
@@ -40,7 +40,7 @@
   }
   class NMosaic {
     cells;
-    clues;
+    clueMap;
     BOARD_HEIGHT;
     BOARD_WIDTH;
     BOARD_COLORS;
@@ -66,7 +66,7 @@
       this.BOARD_DIFFICULTY = difficulty;
       this.SEED = seed;
       this.cells = [];
-      this.clues = [];
+      this.clueMap = /* @__PURE__ */ new Map();
     }
     /** A fresh random seed, used whenever the caller doesn't supply one. */
     static randomSeed() {
@@ -75,13 +75,13 @@
       }
       return Math.floor(Math.random() * 4294967296);
     }
-    async regenerate(height = 9, width = 9, colors = 2, fraction = 0.5, difficulty = "random", seed) {
+    async regenerate(height = 9, width = 9, colors = 2, fraction = 0.5, difficulty = "random", seed = NMosaic.randomSeed()) {
       this.BOARD_HEIGHT = height;
       this.BOARD_WIDTH = width;
       this.BOARD_COLORS = colors;
       this.BOARD_FRACTION = fraction;
       this.BOARD_DIFFICULTY = difficulty;
-      this.SEED = seed !== void 0 ? seed : NMosaic.randomSeed();
+      this.SEED = seed;
       this.random = seedrandom(this.SEED);
       this.selectedColor = 0;
       this.pencilMode = false;
@@ -91,7 +91,7 @@
       this.randomPatternFound = false;
       this.recipesApplied = 0;
       this.cells = [];
-      this.clues = [];
+      this.clueMap = /* @__PURE__ */ new Map();
       this.puzzleComplete = false;
       for (let row = 0; row < this.BOARD_HEIGHT; row++) {
         for (let col = 0; col < this.BOARD_WIDTH; col++) {
@@ -107,23 +107,29 @@
         item.cell.solutionColor = item.color;
       }
       for (const clue of recipe.toClue) {
-        this.clues.push(clue);
+        const clueCell = this.getCell(clue.row, clue.col);
+        if (!clueCell) continue;
+        const cellClues = this.clueMap.get(clueCell);
+        this.clueMap.set(clueCell, cellClues?.concat(clue) ?? [clue]);
       }
     }
     getSimpleRemainderRecipes() {
       const recipes = [];
+      this.clueMap.forEach((value, key) => {
+        value.forEach((clue) => {
+        });
+      });
       for (const cell of this.cells) {
         if (!cell.included) continue;
-        if (this.clues.some((c) => c.row === cell.row && c.col === cell.col))
-          continue;
-        const emptyNeighbors = cell.neighbors.filter(
+        if ((this.clueMap.get(cell)?.length ?? 0) > 0) continue;
+        const emptyNeighbors = [...cell.neighbors].filter(
           (n) => n.solutionColor === null
         );
         if (emptyNeighbors.length === 0) continue;
         for (let color = 0; color < this.BOARD_COLORS; color++) {
           const weight = 100 / Math.pow(this.BOARD_COLORS, emptyNeighbors.length);
           const toColor = emptyNeighbors.map((n) => ({ cell: n, color }));
-          const count = cell.neighbors.filter(
+          const count = [...cell.neighbors].filter(
             (n) => n.solutionColor === color || emptyNeighbors.includes(n)
           ).length;
           const clue = new NMosaicClue(cell.row, cell.col, color, count);
@@ -133,18 +139,24 @@
       return recipes;
     }
     solveSimpleRemainder(nMosaic) {
-      let applied = 0;
-      nMosaic.clues.forEach((clue) => {
-        const neighbourhood = nMosaic.getCell(clue.row, clue.col)?.neighbors ?? [];
-        const adjustedClue = clue.count - neighbourhood.filter((cell) => cell.color === clue.color).length;
-        const emptyCells = neighbourhood.filter((cell) => cell.color === null);
-        if (emptyCells.length > 0 && adjustedClue === emptyCells.length) {
-          emptyCells.forEach((cell) => cell.color = clue.color);
-          applied++;
-        }
+      let applicationSet = [];
+      nMosaic.clueMap.forEach((clues, cell) => {
+        clues.forEach((clue) => {
+          const neighbourhood = cell.neighbors ?? /* @__PURE__ */ new Set();
+          const adjustedClue = clue.count - [...neighbourhood].filter((cell2) => cell2.color === clue.color).length;
+          const emptyCells = [...neighbourhood].filter(
+            (cell2) => cell2.color === null
+          );
+          if (emptyCells.length > 0 && adjustedClue === emptyCells.length) {
+            applicationSet.push({ cells: emptyCells, color: clue.color });
+          }
+        });
       });
-      nMosaic.techniqueCounts["SimpleRemainder"] = (nMosaic.techniqueCounts["SimpleRemainder"] ?? 0) + applied;
-      return applied;
+      applicationSet.forEach((application) => {
+        application.cells.forEach((cell) => cell.color = application.color);
+      });
+      nMosaic.techniqueCounts["SimpleRemainder"] = (nMosaic.techniqueCounts["SimpleRemainder"] ?? 0) + applicationSet.length;
+      return applicationSet.length;
     }
     buildCandidateBoard(nMosaic) {
       const candidateBoard = [];
@@ -158,125 +170,138 @@
           candidateBoard[row].push(candidates);
         }
       }
-      nMosaic.clues.forEach((clue) => {
-        const neighbourhood = nMosaic.getCell(clue.row, clue.col)?.neighbors ?? [];
-        neighbourhood.filter((cell) => cell.color !== null).forEach((cell) => candidateBoard[cell.row][cell.col].clear());
-        if (clue.count === neighbourhood.filter((cell) => cell.color === clue.color).length) {
-          neighbourhood.filter((cell) => cell.color === null).forEach(
-            (cell) => candidateBoard[cell.row][cell.col].delete(clue.color)
-          );
-        }
+      nMosaic.clueMap.forEach((clues, cell) => {
+        clues.forEach((clue) => {
+          [...cell.neighbors].filter((cell2) => cell2.color !== null).forEach((cell2) => candidateBoard[cell2.row][cell2.col].clear());
+          if (clue.count === [...cell.neighbors].filter((cell2) => cell2.color === clue.color).length) {
+            [...cell.neighbors].filter((cell2) => cell2.color === null).forEach(
+              (cell2) => candidateBoard[cell2.row][cell2.col].delete(clue.color)
+            );
+          }
+        });
       });
       return candidateBoard;
     }
     solveLastCandidate(nMosaic) {
       let applied = 0;
       const candidateBoard = this.buildCandidateBoard(nMosaic);
-      for (let row = 0; row < nMosaic.BOARD_HEIGHT; row++) {
-        for (let col = 0; col < nMosaic.BOARD_WIDTH; col++) {
-          if (candidateBoard[row][col].size !== 1) continue;
-          const cell = nMosaic.getCell(row, col);
-          if (!cell) continue;
-          cell.color = [...candidateBoard[row][col]][0];
-          applied++;
-        }
-      }
+      nMosaic.cells.forEach((cell) => {
+        if (candidateBoard[cell.row][cell.col].size !== 1) return;
+        cell.color = [...candidateBoard[cell.row][cell.col]][0];
+        applied++;
+      });
       nMosaic.techniqueCounts["LastCandidate"] = (nMosaic.techniqueCounts["LastCandidate"] ?? 0) + applied;
       return applied;
     }
     solveSimpleCandidateRemainder(nMosaic) {
-      let applied = 0;
       const candidateBoard = this.buildCandidateBoard(nMosaic);
-      nMosaic.clues.forEach((clue) => {
-        const neighbourhood = nMosaic.getCell(clue.row, clue.col)?.neighbors ?? [];
-        const adjustedClue = clue.count - neighbourhood.filter((cell) => cell.color === clue.color).length;
-        const candidateCells = neighbourhood.filter(
-          (cell) => candidateBoard[cell.row][cell.col].has(clue.color)
-        );
-        if (candidateCells.length > 0 && adjustedClue === candidateCells.length) {
-          candidateCells.forEach((cell) => cell.color = clue.color);
-          applied++;
-        }
+      let applicationSet = [];
+      nMosaic.clueMap.forEach((clues, cell) => {
+        clues.forEach((clue) => {
+          const adjustedClue = clue.count - [...cell.neighbors].filter((cell2) => cell2.color === clue.color).length;
+          const candidateCells = [...cell.neighbors].filter(
+            (cell2) => candidateBoard[cell2.row][cell2.col].has(clue.color)
+          );
+          if (candidateCells.length > 0 && adjustedClue === candidateCells.length) {
+            applicationSet.push({ cells: candidateCells, color: clue.color });
+          }
+        });
       });
-      nMosaic.techniqueCounts["SimpleCandidateRemainder"] = (nMosaic.techniqueCounts["SimpleCandidateRemainder"] ?? 0) + applied;
-      return applied;
+      applicationSet.forEach((application) => {
+        application.cells.forEach((cell) => cell.color = application.color);
+      });
+      nMosaic.techniqueCounts["SimpleCandidateRemainder"] = (nMosaic.techniqueCounts["SimpleCandidateRemainder"] ?? 0) + applicationSet.length;
+      return applicationSet.length;
     }
     solveSimpleSubsetRemainder(nMosaic) {
-      let applied = 0;
-      nMosaic.clues.forEach((clue) => {
-        const clueCell = nMosaic.getCell(clue.row, clue.col);
-        nMosaic.clues.filter(
-          (subClue) => Math.abs(subClue.col - clue.col) <= 2 && Math.abs(subClue.row - clue.row) <= 2
-        ).forEach((subClue) => {
-          const clueArea = clueCell?.neighbors.filter(
-            (neighbour) => neighbour.color === null
-          ) ?? [];
-          const subClueCell = nMosaic.getCell(subClue.row, subClue.col);
-          const subClueArea = subClueCell?.neighbors.filter(
-            (neighbour) => neighbour.color === null
-          ) ?? [];
-          if (!subClueArea.every((cell) => clueArea.includes(cell))) return;
-          const effectiveClueValue = clue.count - (clueCell?.neighbors.filter(
-            (neighbour) => neighbour.color === clue.color
-          )?.length ?? 0);
-          const effectiveSubClueValue = subClue.count - (subClueCell?.neighbors.filter(
-            (neighbour) => neighbour.color === subClue.color
-          )?.length ?? 0);
-          const clueExclusiveArea = clueArea.filter(
-            (cell) => !subClueArea.includes(cell)
-          );
-          if (clue.color === subClue.color) {
-            if (clueExclusiveArea.length > 0 && effectiveClueValue - effectiveSubClueValue === clueExclusiveArea.length) {
-              applied++;
-              clueExclusiveArea.forEach((cell) => cell.color = clue.color);
-            }
-          } else {
-            if (clueExclusiveArea.length > 0 && effectiveClueValue - (subClueArea.length - effectiveSubClueValue) === clueExclusiveArea.length) {
-              applied++;
-              clueExclusiveArea.forEach((cell) => cell.color = clue.color);
+      let applicationSet = [];
+      nMosaic.clueMap.forEach((clues, cell) => {
+        clues.forEach((clue) => {
+          for (let dRow = -2; dRow <= 2; dRow++) {
+            for (let dCol = -2; dCol <= 2; dCol++) {
+              if (dRow === 0 && dCol === 0) continue;
+              const otherCell = this.getCell(cell.row + dRow, cell.col + dCol);
+              if (!otherCell) continue;
+              const subClues = nMosaic.clueMap.get(otherCell);
+              subClues?.forEach((subClue) => {
+                const clueArea = [...cell.neighbors].filter(
+                  (neighbour) => neighbour.color === null
+                ) ?? [];
+                const subClueArea = [...otherCell.neighbors].filter(
+                  (neighbour) => neighbour.color === null
+                ) ?? [];
+                if (!subClueArea.every((cell2) => clueArea.includes(cell2))) return;
+                const effectiveClueValue = clue.count - ([...cell.neighbors].filter(
+                  (neighbour) => neighbour.color === clue.color
+                )?.length ?? 0);
+                const effectiveSubClueValue = subClue.count - ([...otherCell.neighbors].filter(
+                  (neighbour) => neighbour.color === subClue.color
+                )?.length ?? 0);
+                const clueExclusiveArea = clueArea.filter(
+                  (cell2) => !subClueArea.includes(cell2)
+                );
+                if (clue.color === subClue.color) {
+                  if (clueExclusiveArea.length > 0 && effectiveClueValue - effectiveSubClueValue === clueExclusiveArea.length) {
+                    applicationSet.push({ cells: clueExclusiveArea, color: clue.color });
+                  }
+                } else {
+                  if (clueExclusiveArea.length > 0 && effectiveClueValue - (subClueArea.length - effectiveSubClueValue) === clueExclusiveArea.length) {
+                    applicationSet.push({ cells: clueExclusiveArea, color: clue.color });
+                  }
+                }
+              });
             }
           }
         });
       });
-      nMosaic.techniqueCounts["SimpleSubsetRemainder"] = (nMosaic.techniqueCounts["SimpleSubsetRemainder"] ?? 0) + applied;
-      return applied;
+      applicationSet.forEach((application) => {
+        application.cells.forEach((cell) => cell.color = application.color);
+      });
+      nMosaic.techniqueCounts["SimpleSubsetRemainder"] = (nMosaic.techniqueCounts["SimpleSubsetRemainder"] ?? 0) + applicationSet.length;
+      return applicationSet.length;
     }
+    // This technique only searches for TNS occurences in n or fewer clues (where n is the number of colors in the puzzle)
+    //  and only finds minimal TNS sets
     solveTotalNeighbourhoodSum(nMosaic) {
       let applied = 0;
-      nMosaic.clues.forEach((clueA) => {
-        nMosaic.clues.filter(
-          (clueB) => Math.abs(clueB.col - clueA.col) <= 2 && Math.abs(clueB.row - clueA.row) <= 2
-        ).forEach((clueB) => {
-          const clueARegion = nMosaic.getCell(clueA.row, clueA.col)?.neighbors ?? [];
-          const clueBRegion = nMosaic.getCell(clueB.row, clueB.col)?.neighbors ?? [];
-          const clueAOpen = clueARegion.filter((cell) => cell.color === null);
-          const clueBOpen = clueBRegion.filter((cell) => cell.color === null);
-          const intersection = clueAOpen.filter(
-            (cell) => clueBOpen.includes(cell)
+      const allClues = [...nMosaic.clueMap.entries()].flatMap((entry) => entry[1]);
+      const clueSet = /* @__PURE__ */ new Set();
+      const applicationList = [];
+      function depthFirstSearch(lastIndex, union, count) {
+        if (union.size > 0 && union.size === count) {
+          applicationList.push(structuredClone(clueSet));
+        }
+        for (let i = lastIndex; i < allClues.length; i++) {
+          const nextClue = allClues[i];
+          const clueCell = nMosaic.getCell(nextClue.row, nextClue.col);
+          if (!clueCell) continue;
+          const effectiveClueValue = nextClue.count - [...clueCell.neighbors].filter((cell) => cell.color === nextClue.color).length;
+          if (effectiveClueValue <= 0) continue;
+          if ([...clueCell.neighbors.intersection(union)].filter((cell) => cell.color === null).length === 0) continue;
+          if ([...clueSet].some((clue) => clue.color === nextClue.color)) continue;
+          clueSet.add(nextClue);
+          depthFirstSearch(i + 1, union.union(clueCell.neighbors), count + effectiveClueValue);
+          clueSet.delete(nextClue);
+        }
+      }
+      applicationList.forEach((application) => {
+        const clueCellMap = /* @__PURE__ */ new Map();
+        application.forEach((clue) => {
+          const clueCell = nMosaic.getCell(clue.row, clue.col);
+          if (!clueCell) return;
+          clueCellMap.set(clue, clueCell.neighbors);
+        });
+        application.forEach((clue) => {
+          clueCellMap.get(clue);
+          const affectedCells = [...clueCellMap.entries()].reduce(
+            (prev, curr) => curr[0] !== clue ? prev.difference(curr[1]) : prev,
+            clueCellMap.get(clue) ?? /* @__PURE__ */ new Set()
           );
-          const aMinusB = clueAOpen.filter((cell) => !clueBOpen.includes(cell));
-          const bMinusA = clueBOpen.filter((cell) => !clueAOpen.includes(cell));
-          if (!(intersection.length > 0 && aMinusB.length > 0 && bMinusA.length > 0))
-            return;
-          const effectiveClueA = clueA.count - clueARegion.filter((cell) => cell.color === clueA.color).length;
-          const effectiveClueB = clueB.count - clueBRegion.filter((cell) => cell.color === clueB.color).length;
-          if (clueA.color !== clueB.color && effectiveClueA + effectiveClueB === clueAOpen.length + bMinusA.length) {
-            aMinusB.forEach((cell) => cell.color = clueA.color);
-            bMinusA.forEach((cell) => cell.color = clueB.color);
-            applied++;
-          } else if (clueA.color === clueB.color) {
-            if (effectiveClueA - aMinusB.length === effectiveClueB) {
-              aMinusB.forEach((cell) => cell.color = clueA.color);
-              applied++;
-            } else if (effectiveClueB - bMinusA.length === effectiveClueA) {
-              bMinusA.forEach((cell) => cell.color = clueB.color);
-              applied++;
-            }
-          }
+          affectedCells.forEach((cell) => cell.color = clue.color);
         });
       });
-      nMosaic.techniqueCounts["TotalNeighbourhoodSum"] = (nMosaic.techniqueCounts["TotalNeighbourhoodSum"] ?? 0) + applied;
-      return applied;
+      nMosaic.techniqueCounts["TotalNeighbourhoodSum"] = (nMosaic.techniqueCounts["TotalNeighbourhoodSum"] ?? 0) + applicationList.length;
+      return applicationList.length;
     }
     async generateRecipePuzzle(recipeGenerators) {
       while (true) {
@@ -300,18 +325,18 @@
           if (selectedIndex < 0) break;
           const recipe = allRecipes[selectedIndex];
           allRecipes.splice(selectedIndex, 1);
-          const savedClues = this.clues.slice();
+          const savedClues = structuredClone(this.clueMap);
           const savedColors = /* @__PURE__ */ new Map();
           for (const item of recipe.toColor) {
             savedColors.set(item.cell, item.cell.solutionColor);
           }
           this.applyRecipe(recipe);
-          if (await this.satIsConsistent(this.clues)) {
+          if (await this.satIsConsistent(this.clueMap)) {
             applied = true;
             this.recipesApplied += recipe.toClue.length;
             break;
           }
-          this.clues = savedClues;
+          this.clueMap = savedClues;
           for (const [cell, color] of savedColors) {
             cell.solutionColor = color;
           }
@@ -329,10 +354,14 @@
           }
         });
       }
-      const solved = this.cells.every((cell) => cell.color !== null || !cell.included) && this.clues.every((clue) => {
-        const neighbourhood = this.getCell(clue.row, clue.col)?.neighbors ?? [];
-        return neighbourhood.filter((cell) => cell.color === clue.color).length === clue.count;
+      let cluesSatisfied = true;
+      this.clueMap.forEach((clues, cell) => {
+        clues.forEach((clue) => {
+          const clueSatisfied = [...cell.neighbors].filter((cell2) => cell2.color === clue.color).length === clue.count;
+          if (!clueSatisfied) cluesSatisfied = false;
+        });
       });
+      const solved = this.cells.every((cell) => cell.color !== null || !cell.included) && cluesSatisfied;
       this.cells.forEach((cell) => {
         cell.color = null;
       });
@@ -356,63 +385,79 @@
       }
       this.randomPuzzleTries = tries;
       this.randomPatternFound = solvable;
-      shuffleInPlace(this.clues, this.random);
-      const maxAttempts = this.clues.length;
-      let counter = 0;
-      while (counter <= maxAttempts) {
-        const removedClue = this.clues.shift();
-        if (!removedClue) throw new Error("clues is empty");
-        counter++;
+      let clueMapDuplicate = structuredClone(this.clueMap);
+      let clueList = [...this.clueMap.entries()].flatMap((entry) => entry[1]);
+      shuffleInPlace(clueList, this.random);
+      clueList.forEach(async (removedClue) => {
+        const removedClueCell = this.getCell(removedClue.row, removedClue.col);
+        if (!removedClueCell) throw new Error("Clue Cell Not Found");
+        this.clueMap.set(
+          removedClueCell,
+          this.clueMap.get(removedClueCell)?.filter((clue) => clue.color === removedClue.color) ?? []
+        );
         const solved = await solve();
         if (!solved) {
-          this.clues.push(removedClue);
+          this.clueMap.set(
+            removedClueCell,
+            this.clueMap.get(removedClueCell)?.concat(removedClue) ?? [
+              removedClue
+            ]
+          );
         }
-      }
+      });
     }
     async puzzleGeneratorFactory() {
       switch (this.BOARD_DIFFICULTY) {
-        // case "beginner":
-        //   await this.generateRecipePuzzle([() => this.getSimpleRemainderRecipes()]);
-        //   break;
         case "beginner":
-          await this.backwardPuzzleGenerator(() => this.techniqueSolve([
-            (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic)
-          ]));
+          await this.generateRecipePuzzle([
+            () => this.getSimpleRemainderRecipes()
+          ]);
           break;
         case "intermediate":
-          await this.backwardPuzzleGenerator(() => this.techniqueSolve([
-            (nMosaic) => this.solveLastCandidate(nMosaic),
-            (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
-            (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic)
-          ]));
+          await this.backwardPuzzleGenerator(
+            () => this.techniqueSolve([
+              (nMosaic) => this.solveLastCandidate(nMosaic),
+              (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic)
+            ])
+          );
           break;
         case "advanced":
-          await this.backwardPuzzleGenerator(() => this.techniqueSolve([
-            (nMosaic) => this.solveSimpleRemainder(nMosaic),
-            (nMosaic) => this.solveLastCandidate(nMosaic),
-            (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
-            (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
-            (nMosaic) => this.solveTotalNeighbourhoodSum(nMosaic)
-          ]));
+          await this.backwardPuzzleGenerator(
+            () => this.techniqueSolve([
+              (nMosaic) => this.solveLastCandidate(nMosaic),
+              (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
+              (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic)
+            ])
+          );
+          break;
+        case "expert":
+          await this.backwardPuzzleGenerator(
+            () => this.techniqueSolve([
+              (nMosaic) => this.solveSimpleRemainder(nMosaic),
+              (nMosaic) => this.solveLastCandidate(nMosaic),
+              (nMosaic) => this.solveSimpleCandidateRemainder(nMosaic),
+              (nMosaic) => this.solveSimpleSubsetRemainder(nMosaic),
+              (nMosaic) => this.solveTotalNeighbourhoodSum(nMosaic)
+            ])
+          );
           break;
         case "grandmaster":
-          await this.backwardPuzzleGenerator(() => this.satHasUniqueSolution(this.clues));
+        case "sat":
+          await this.backwardPuzzleGenerator(
+            () => this.satHasUniqueSolution(this.clueMap)
+          );
           break;
         case "random":
           this.generateRandomPuzzle();
-          this.cells.forEach((cell) => {
-            const localClues = this.clues.filter(
-              (clue) => clue.row === cell.row && clue.col === cell.col
-            );
-            if (localClues.length === 0) return;
-            let worstClue = localClues[0];
-            localClues.forEach((clue) => {
+          this.clueMap.forEach((clues, cell) => {
+            if (clues.length === 0) return;
+            let worstClue = clues[0];
+            clues.forEach((clue) => {
               if (Math.abs(clue.count - 5) < Math.abs(worstClue.count - 5)) {
                 worstClue = clue;
               }
             });
-            const worstClueIndex = this.clues.findIndex((clue) => clue === worstClue);
-            this.clues.splice(worstClueIndex, 1);
+            this.clueMap.set(cell, clues.filter((clue) => clue.color === worstClue.color));
           });
           break;
         default:
@@ -425,15 +470,15 @@
         if (!cell.included) return;
         cell.solutionColor = Math.floor(this.random() * this.BOARD_COLORS);
       });
-      this.clues = [];
+      this.clueMap = /* @__PURE__ */ new Map();
       for (const cell of this.cells) {
         if (!cell.included) continue;
         for (let c = 0; c < this.BOARD_COLORS; c++) {
-          let clueCount = cell.neighbors.filter(
+          let clueCount = [...cell.neighbors].filter(
             (it) => it.solutionColor === c
           ).length;
           const clue = new NMosaicClue(cell.row, cell.col, c, clueCount);
-          this.clues.push(clue);
+          this.clueMap.set(cell, this.clueMap.get(cell)?.concat(clue) ?? [clue]);
         }
       }
     }
@@ -476,7 +521,7 @@
           for (let dCol = -1; dCol <= 1; dCol++) {
             const neighbor = this.getCell(cell.row + dRow, cell.col + dCol);
             if (neighbor !== null && neighbor.included) {
-              cell.neighbors.push(neighbor);
+              cell.neighbors.add(neighbor);
             }
           }
         }
@@ -492,7 +537,7 @@
      * are consistent (i.e. there exists at least one full assignment of all
      * cells that satisfies every clue and respects every already-colored cell).
      */
-    async satIsConsistent(clues) {
+    async satIsConsistent(clueMap) {
       const totalUserVars = this.BOARD_HEIGHT * this.BOARD_WIDTH * this.BOARD_COLORS;
       const varCache = new VarCache(totalUserVars);
       const clauses = [];
@@ -504,15 +549,18 @@
         }
         clauses.push(...exactlyOne(vars));
       }
-      for (const clue of clues) {
-        const clueCell = this.getCell(clue.row, clue.col);
-        const neighborVars = clueCell.neighbors.filter((neighbor) => neighbor.included).map((neighbor) => this.varId(neighbor.row, neighbor.col, clue.color));
-        if (clue.count === 0) {
-          for (const v of neighborVars) clauses.push([-v]);
-        } else {
-          clauses.push(...exactlyK(neighborVars, clue.count, varCache));
-        }
-      }
+      clueMap.forEach((clues, cell) => {
+        clues.forEach((clue) => {
+          const neighborVars = [...cell.neighbors].filter((neighbor) => neighbor.included).map(
+            (neighbor) => this.varId(neighbor.row, neighbor.col, clue.color)
+          );
+          if (clue.count === 0) {
+            for (const v of neighborVars) clauses.push([-v]);
+          } else {
+            clauses.push(...exactlyK(neighborVars, clue.count, varCache));
+          }
+        });
+      });
       for (const cell of this.cells) {
         if (!cell.included || cell.solutionColor === null) continue;
         clauses.push([this.varId(cell.row, cell.col, cell.solutionColor)]);
@@ -543,7 +591,7 @@
      * clue counts the correct number of same-coloured neighbours) as CNF and
      * checks that the intended solution is the unique satisfying assignment.
      */
-    async satHasUniqueSolution(clues) {
+    async satHasUniqueSolution(clueMap) {
       const totalUserVars = this.BOARD_HEIGHT * this.BOARD_WIDTH * this.BOARD_COLORS;
       const varCache = new VarCache(totalUserVars);
       const clauses = [];
@@ -555,17 +603,20 @@
         }
         clauses.push(...exactlyOne(vars));
       }
-      for (const clue of clues) {
-        const clueCell = this.getCell(clue.row, clue.col);
-        const neighborVars = clueCell.neighbors.filter((neighbor) => neighbor.included).map((neighbor) => this.varId(neighbor.row, neighbor.col, clue.color));
-        if (clue.count === 0) {
-          for (const v of neighborVars) {
-            clauses.push([-v]);
+      clueMap.forEach((clues, cell) => {
+        clues.forEach((clue) => {
+          const neighborVars = [...cell.neighbors].filter((neighbor) => neighbor.included).map(
+            (neighbor) => this.varId(neighbor.row, neighbor.col, clue.color)
+          );
+          if (clue.count === 0) {
+            for (const v of neighborVars) {
+              clauses.push([-v]);
+            }
+          } else {
+            clauses.push(...exactlyK(neighborVars, clue.count, varCache));
           }
-        } else {
-          clauses.push(...exactlyK(neighborVars, clue.count, varCache));
-        }
-      }
+        });
+      });
       const totalVars = varCache.last;
       const blockingClause = [];
       for (const cell of this.cells) {
