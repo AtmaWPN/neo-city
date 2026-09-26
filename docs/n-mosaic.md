@@ -55,7 +55,7 @@ Effective Clue N-TNS
 
 TNS Chaining - For any set of clues, if no same-color Clues share an empty cell, the sum of the Effective Clue values equals the number of empty cells in those Clues' neighbourhoods and the TNS condition holds.
 
-Excluded Difference - Like TNS but one clue is treated as inverted (i.e. X cells in Y region are NOT color Z)
+Excluded Difference - Like TNS but we can treat clues as inverted (i.e. X cells in Y region are NOT color Z), "NOT color Z" is considered to be a color that counts as the same color of all colors except color Z for the purposes of TNS-chaining
 
 ### Implied Clues
 - Implied Clues are like real Clues except you can't see them and they govern smaller areas
