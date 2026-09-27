@@ -189,10 +189,10 @@ class NMosaic {
   }
 
   async regenerate(
-    height: number = 9,
-    width: number = 9,
-    colors: number = 2,
-    fraction: number = 0.5,
+    height: number = 10,
+    width: number = 10,
+    colors: number = 3,
+    fraction: number = 0.8,
     difficulty: string = "random",
     seed: number = NMosaic.randomSeed(),
   ) {
@@ -295,7 +295,6 @@ class NMosaic {
       application.cells.forEach((cell) => cell.color = application.color);
     });
 
-    // console.log("Simple Remainder:", applied);
     nMosaic.techniqueCounts["SimpleRemainder"] =
       (nMosaic.techniqueCounts["SimpleRemainder"] ?? 0) + applicationSet.length;
     return applicationSet.length;
@@ -462,8 +461,6 @@ class NMosaic {
   // This technique only searches for TNS occurences in n or fewer clues (where n is the number of colors in the puzzle)
   //  and only finds minimal TNS sets
   solveTotalNeighbourhoodSum(nMosaic: NMosaic): number {
-    let applied = 0;
-
     // depth-first search
     //  base case: TNS satisfied for this set, save the set for application later
     //  for each clue in a strict order (Map does maintain a consistent order)
@@ -495,6 +492,9 @@ class NMosaic {
         clueSet.delete(nextClue);
       }
     }
+
+    depthFirstSearch(0, new Set(), 0);
+    if (applicationList.length > 0) console.log("AAAAAAAAAAAAAAAAAAAAAAAAA")
 
     applicationList.forEach((application) => {
       const clueCellMap: Map<NMosaicClue, Set<NMosaicCell>> = new Map();
@@ -635,11 +635,10 @@ class NMosaic {
 
     // Seeded Fisher–Yates instead of a random comparator: the sort-based
     // shuffle's result is implementation dependent, Fisher–Yates is portable.
-    let clueMapDuplicate = structuredClone(this.clueMap);
-    let clueList = [...this.clueMap.entries()].flatMap((entry) => entry[1]);
+    let clueList = [...this.clueMap.values()].flat();
     shuffleInPlace(clueList, this.random);
 
-    clueList.forEach(async (removedClue) => {
+    for (const removedClue of clueList) {
       const removedClueCell = this.getCell(removedClue.row, removedClue.col);
       if (!removedClueCell) throw new Error("Clue Cell Not Found");
 
@@ -647,7 +646,7 @@ class NMosaic {
         removedClueCell,
         this.clueMap
           .get(removedClueCell)
-          ?.filter((clue) => clue.color === removedClue.color) ?? [],
+          ?.filter((clue) => clue.color !== removedClue.color) ?? [],
       );
 
       const solved = await solve();
@@ -660,7 +659,7 @@ class NMosaic {
           ],
         );
       }
-    });
+    }
   }
 
   async puzzleGeneratorFactory(): Promise<void> {
@@ -718,7 +717,7 @@ class NMosaic {
               worstClue = clue;
             }
           });
-          this.clueMap.set(cell, clues.filter((clue) => clue.color === worstClue.color));
+          this.clueMap.set(cell, clues.filter((clue) => clue.color !== worstClue.color));
         });
         break;
       default:
@@ -857,7 +856,7 @@ class NMosaic {
         }
       });
     });
-
+recordSatStats
     // Force already-assigned cells to keep their current colour.
     for (const cell of this.cells) {
       if (!cell.included || cell.solutionColor === null) continue;

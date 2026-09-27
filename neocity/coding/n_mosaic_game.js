@@ -541,6 +541,7 @@ function nMosaicMain() {
     "advanced",
     "expert",
     "grandmaster",
+    "sat",
     "random",
   ];
 
@@ -581,16 +582,19 @@ function nMosaicMain() {
   function regenerate() {
     // An empty seed field means "surprise me": mint a fresh seed up front so
     // the field, the URL and the generator all agree.
-    if (parseSeed(seedInput.value) === null) {
-      seedInput.value = String(NMosaic.randomSeed());
+    let seed = parseSeed(seedInput.value);
+    if (seed === null) {
+      seed = NMosaic.randomSeed();
     }
+
+    seedDisplay.textContent = `Puzzle Seed: ${String(seed)}`;
     nMosaic.regenerate(
       parseInt(sizeInput.value),
       parseInt(sizeInput.value),
       parseInt(colorsInput.value),
       undefined,
       currentDifficulty(),
-      parseSeed(seedInput.value),
+      seed,
     );
     renderer.showSolution = false;
   }

@@ -83,7 +83,7 @@
       }
       return Math.floor(Math.random() * 4294967296);
     }
-    async regenerate(height = 9, width = 9, colors = 2, fraction = 0.5, difficulty = "random", seed = NMosaic.randomSeed()) {
+    async regenerate(height = 10, width = 10, colors = 3, fraction = 0.8, difficulty = "random", seed = NMosaic.randomSeed()) {
       this.BOARD_HEIGHT = height;
       this.BOARD_WIDTH = width;
       this.BOARD_COLORS = colors;
@@ -271,7 +271,6 @@
     // This technique only searches for TNS occurences in n or fewer clues (where n is the number of colors in the puzzle)
     //  and only finds minimal TNS sets
     solveTotalNeighbourhoodSum(nMosaic) {
-      let applied = 0;
       const allClues = [...nMosaic.clueMap.entries()].flatMap((entry) => entry[1]);
       const clueSet = /* @__PURE__ */ new Set();
       const applicationList = [];
@@ -292,6 +291,8 @@
           clueSet.delete(nextClue);
         }
       }
+      depthFirstSearch(0, /* @__PURE__ */ new Set(), 0);
+      if (applicationList.length > 0) console.log("AAAAAAAAAAAAAAAAAAAAAAAAA");
       applicationList.forEach((application) => {
         const clueCellMap = /* @__PURE__ */ new Map();
         application.forEach((clue) => {
@@ -393,15 +394,14 @@
       }
       this.randomPuzzleTries = tries;
       this.randomPatternFound = solvable;
-      let clueMapDuplicate = structuredClone(this.clueMap);
-      let clueList = [...this.clueMap.entries()].flatMap((entry) => entry[1]);
+      let clueList = [...this.clueMap.values()].flat();
       shuffleInPlace(clueList, this.random);
-      clueList.forEach(async (removedClue) => {
+      for (const removedClue of clueList) {
         const removedClueCell = this.getCell(removedClue.row, removedClue.col);
         if (!removedClueCell) throw new Error("Clue Cell Not Found");
         this.clueMap.set(
           removedClueCell,
-          this.clueMap.get(removedClueCell)?.filter((clue) => clue.color === removedClue.color) ?? []
+          this.clueMap.get(removedClueCell)?.filter((clue) => clue.color !== removedClue.color) ?? []
         );
         const solved = await solve();
         if (!solved) {
@@ -412,7 +412,7 @@
             ]
           );
         }
-      });
+      }
     }
     async puzzleGeneratorFactory() {
       switch (this.BOARD_DIFFICULTY) {
@@ -465,7 +465,7 @@
                 worstClue = clue;
               }
             });
-            this.clueMap.set(cell, clues.filter((clue) => clue.color === worstClue.color));
+            this.clueMap.set(cell, clues.filter((clue) => clue.color !== worstClue.color));
           });
           break;
         default:
@@ -569,6 +569,7 @@
           }
         });
       });
+      recordSatStats;
       for (const cell of this.cells) {
         if (!cell.included || cell.solutionColor === null) continue;
         clauses.push([this.varId(cell.row, cell.col, cell.solutionColor)]);
