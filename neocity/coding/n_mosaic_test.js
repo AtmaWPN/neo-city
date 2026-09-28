@@ -228,6 +228,17 @@
     "grandmaster",
     "random",
   ];
+  function selectedBenchDifficulties() {
+    return BENCH_DIFFICULTIES.filter((diff) => $(`nmt_bench_${diff}`).checked);
+  }
+  function selectedBenchSizes() {
+    return BENCH_SIZES.filter((size) => $(`nmt_bench_size_${size}`).checked);
+  }
+  // Difficulties/board sizes the benchmark runs: snapshots taken when a run
+  // starts (and kept in sync with the checkboxes between runs, so the table
+  // previews them). Start from the checkbox defaults, rendered before load.
+  let benchDiffs = selectedBenchDifficulties();
+  let benchSizes = selectedBenchSizes();
   let benchmarkRunning = false;
   let benchmarkCancelled = false;
   // benchResults[difficulty][size] = { n, totalMs, bestMs, worstMs }
@@ -241,10 +252,10 @@
   function benchTable() {
     const head =
       `<tr><th class="l">difficulty</th>` +
-      BENCH_SIZES.map((s) => `<th>${s}\u00d7${s}</th>`).join("") +
+      benchSizes.map((s) => `<th>${s}\u00d7${s}</th>`).join("") +
       `<th>avg</th></tr>`;
-    const body = BENCH_DIFFICULTIES.map((diff) => {
-      const cells = BENCH_SIZES.map((s) => {
+    const body = benchDiffs.map((diff) => {
+      const cells = benchSizes.map((s) => {
         const c = benchResults[diff]?.[s];
         if (!c || c.n === 0) return { text: "\u2014", title: "" };
         const avg = c.totalMs / c.n;
@@ -254,7 +265,7 @@
             `${c.n} runs \u00b7 avg ${fmtMs(avg)} \u00b7 best ${fmtMs(c.bestMs)} \u00b7 worst ${fmtMs(c.worstMs)}`,
         };
       });
-      const all = BENCH_SIZES
+      const all = benchSizes
         .map((s) => benchResults[diff]?.[s])
         .filter((c) => c && c.n > 0);
       const avgAll = all.length
@@ -276,7 +287,25 @@
     const { colors, fraction } = readParams();
     // Snapshot the runs-per-cell setting once so mid-run edits don't skew it.
     const runs = benchRuns();
-    const totalRuns = BENCH_SIZES.length * BENCH_DIFFICULTIES.length * runs;
+    const diffs = selectedBenchDifficulties();
+    const sizes = selectedBenchSizes();
+    if (diffs.length === 0) {
+      $("nmt_benchstatus").textContent =
+        "select at least one difficulty to benchmark";
+      $("nmt_bench_start").disabled = false;
+      benchmarkRunning = false;
+      return;
+    }
+    if (sizes.length === 0) {
+      $("nmt_benchstatus").textContent =
+        "select at least one board size to benchmark";
+      $("nmt_bench_start").disabled = false;
+      benchmarkRunning = false;
+      return;
+    }
+    benchDiffs = diffs;
+    benchSizes = sizes;
+    const totalRuns = sizes.length * diffs.length * runs;
     let run = 0;
     const tStart = performance.now();
     const statusEl = $("nmt_benchstatus");
@@ -285,8 +314,8 @@
     statusEl.textContent = "starting benchmark\u2026";
     benchTable();
     outer:
-    for (const size of BENCH_SIZES) {
-      for (const diff of BENCH_DIFFICULTIES) {
+    for (const size of sizes) {
+      for (const diff of diffs) {
         const agg = (benchResults[diff] ??= {})[size] = {
           n: 0,
           totalMs: 0,
@@ -595,6 +624,22 @@
   $("nmt_start").onclick = () => {
     void runBatch();
   };
+  // Difficulty/board-size checkboxes preview the selection in the table
+  // between runs and snapshot it when a benchmark starts (see runBenchmark).
+  BENCH_DIFFICULTIES.forEach((diff) => {
+    $(`nmt_bench_${diff}`).onclick = () => {
+      if (benchmarkRunning) return;
+      benchDiffs = selectedBenchDifficulties();
+      benchTable();
+    };
+  });
+  BENCH_SIZES.forEach((size) => {
+    $(`nmt_bench_size_${size}`).onclick = () => {
+      if (benchmarkRunning) return;
+      benchSizes = selectedBenchSizes();
+      benchTable();
+    };
+  });
   $("nmt_bench_start").onclick = () => {
     void runBenchmark();
   };

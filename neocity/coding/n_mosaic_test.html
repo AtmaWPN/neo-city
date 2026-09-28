@@ -115,14 +115,30 @@
     <div class="nmt-panel">
       <h4>Generation Benchmark</h4>
       <p class="nmt-status">
-        Runs the preset generator a configurable number of times (Runs per cell below) per difficulty
-        (beginner, intermediate, advanced, expert, grandmaster, random) for
-        5&times;5, 10&times;10, 15&times;15 and 20&times;20 boards, then averages the wall-clock generation time per
-        difficulty&times;size. Colors and Shape Fraction come from the Board Parameters panel; 20&times;20 advanced/grandmaster
-        runs are slow, so keep Cancel() handy. Note: "expert" has no generator registered yet, so it is expected to show ~0 ms.
+        Runs the preset generators for the board sizes and difficulties selected below a configurable
+        number of times (Runs per cell) each, then averages the wall-clock generation time per
+        difficulty&times;size. Colors and Shape Fraction come from the Board Parameters panel.
+        expert, grandmaster and 20&times;20 are the slowest options (unchecked by default), so keep
+        Cancel() handy.
       </p>
       <div class="nmt-controls">
         <label>Runs per cell <input type="number" id="nmt_bench_runs" value="100" min="1" max="100000"></label>
+      </div>
+      <div class="nmt-controls">
+        <span>Board sizes to run:</span>
+        <label><input type="checkbox" id="nmt_bench_size_5" checked> 5&times;5</label>
+        <label><input type="checkbox" id="nmt_bench_size_10" checked> 10&times;10</label>
+        <label><input type="checkbox" id="nmt_bench_size_15" checked> 15&times;15</label>
+        <label><input type="checkbox" id="nmt_bench_size_20"> 20&times;20</label>
+      </div>
+      <div class="nmt-controls">
+        <span>Difficulties to run:</span>
+        <label><input type="checkbox" id="nmt_bench_beginner" checked> Beginner</label>
+        <label><input type="checkbox" id="nmt_bench_intermediate" checked> Intermediate</label>
+        <label><input type="checkbox" id="nmt_bench_advanced" checked> Advanced</label>
+        <label><input type="checkbox" id="nmt_bench_expert"> Expert</label>
+        <label><input type="checkbox" id="nmt_bench_grandmaster"> Grandmaster</label>
+        <label><input type="checkbox" id="nmt_bench_random" checked> Random</label>
       </div>
       <div class="nmt-buttons">
         <button id="nmt_bench_start" class="function">Run Benchmark()</button>
