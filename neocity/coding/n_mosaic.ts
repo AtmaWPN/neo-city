@@ -130,14 +130,6 @@ function shuffleInPlace<T>(items: T[], rng: () => number): void {
 class NMosaic {
   cells: Array<NMosaicCell>;
   clueMap: Map<NMosaicCell, NMosaicClue[]>;
-  /**
-   * Flat list of every clue on the board. The renderer and test dashboard
-   * consume clues as a plain array; the clueMap keyed by cell is the
-   * canonical store, so this accessor flattens it on read.
-   */
-  get clues(): Array<NMosaicClue> {
-    return [...this.clueMap.values()].flat();
-  }
   BOARD_HEIGHT: number;
   BOARD_WIDTH: number;
   BOARD_COLORS: number;
@@ -254,7 +246,8 @@ class NMosaic {
     for (const cell of this.cells) {
       if (!cell.included) continue;
       if ((this.clueMap.get(cell)?.length ?? 0) > 0) continue;
-      const emptyNeighbors = [...cell.neighbors].filter(
+      const cellNeighbours = [...cell.neighbors];
+      const emptyNeighbors = cellNeighbours.filter(
         (n) => n.solutionColor === null,
       );
       if (emptyNeighbors.length === 0) continue;
@@ -263,7 +256,7 @@ class NMosaic {
         const weight = 100 / Math.pow(this.BOARD_COLORS, emptyNeighbors.length);
         const toColor: Array<{ cell: NMosaicCell; color: number }> =
           emptyNeighbors.map((n) => ({ cell: n, color }));
-        const count = [...cell.neighbors].filter(
+        const count = cellNeighbours.filter(
           (n) => n.solutionColor === color || emptyNeighbors.includes(n),
         ).length;
         const clue = new NMosaicClue(cell.row, cell.col, color, count);
@@ -277,12 +270,12 @@ class NMosaic {
     let applicationSet: {cells: NMosaicCell[], color: number}[] = [];
 
     nMosaic.clueMap.forEach((clues, cell) => {
+      const neighbourhood = [...(cell.neighbors ?? new Set())];
       clues.forEach((clue) => {
-        const neighbourhood = cell.neighbors ?? new Set();
         const adjustedClue =
           clue.count -
-          [...neighbourhood].filter((cell) => cell.color === clue.color).length;
-        const emptyCells = [...neighbourhood].filter(
+          neighbourhood.filter((cell) => cell.color === clue.color).length;
+        const emptyCells = neighbourhood.filter(
           (cell) => cell.color === null,
         );
         if (emptyCells.length > 0 && adjustedClue === emptyCells.length) {
@@ -314,16 +307,17 @@ class NMosaic {
     }
 
     nMosaic.clueMap.forEach((clues, cell) => {
+      const neighbourhood = [...(cell.neighbors ?? new Set())];
       clues.forEach((clue) => {
-        [...cell.neighbors]
+        neighbourhood
           .filter((cell) => cell.color !== null)
           .forEach((cell) => candidateBoard[cell.row][cell.col].clear());
 
         if (
           clue.count ===
-          [...cell.neighbors].filter((cell) => cell.color === clue.color).length
+          neighbourhood.filter((cell) => cell.color === clue.color).length
         ) {
-          [...cell.neighbors]
+          neighbourhood
             .filter((cell) => cell.color === null)
             .forEach((cell) =>
               candidateBoard[cell.row][cell.col].delete(clue.color),
@@ -358,12 +352,13 @@ class NMosaic {
     let applicationSet: {cells: NMosaicCell[], color: number}[] = [];
 
     nMosaic.clueMap.forEach((clues, cell) => {
+      const neighbourhood = [...(cell.neighbors ?? new Set())];
       clues.forEach((clue) => {
         const adjustedClue =
           clue.count -
-          [...cell.neighbors].filter((cell) => cell.color === clue.color)
+          neighbourhood.filter((cell) => cell.color === clue.color)
             .length;
-        const candidateCells = [...cell.neighbors].filter((cell) =>
+        const candidateCells = neighbourhood.filter((cell) =>
           candidateBoard[cell.row][cell.col].has(clue.color),
         );
         if (
@@ -389,6 +384,7 @@ class NMosaic {
     let applicationSet: {cells: NMosaicCell[], color: number}[] = [];
 
     nMosaic.clueMap.forEach((clues, cell) => {
+      const neighbourhood = [...(cell.neighbors ?? new Set())];
       clues.forEach((clue) => {
         for (let dRow = -2; dRow <= 2; dRow++) {
           for (let dCol = -2; dCol <= 2; dCol++) {
@@ -396,27 +392,28 @@ class NMosaic {
             const otherCell = this.getCell(cell.row + dRow, cell.col + dCol);
 
             if (!otherCell) continue;
+            const otherCellNeighbours = [...otherCell.neighbors];
             const subClues = nMosaic.clueMap.get(otherCell);
 
             subClues?.forEach((subClue) => {
               const clueArea =
-                [...cell.neighbors].filter(
+                neighbourhood.filter(
                   (neighbour) => neighbour.color === null,
                 ) ?? [];
               const subClueArea =
-                [...otherCell.neighbors].filter(
+                otherCellNeighbours.filter(
                   (neighbour) => neighbour.color === null,
                 ) ?? [];
               if (!subClueArea.every((cell) => clueArea.includes(cell))) return;
 
               const effectiveClueValue =
                 clue.count -
-                ([...cell.neighbors].filter(
+                (neighbourhood.filter(
                   (neighbour) => neighbour.color === clue.color,
                 )?.length ?? 0);
               const effectiveSubClueValue =
                 subClue.count -
-                ([...otherCell.neighbors].filter(
+                (otherCellNeighbours.filter(
                   (neighbour) => neighbour.color === subClue.color,
                 )?.length ?? 0);
 
@@ -481,15 +478,16 @@ class NMosaic {
       for (let i = lastIndex; i < allClues.length; i++) {
         const nextClue = allClues[i];
         const clueCell = nMosaic.getCell(nextClue.row, nextClue.col);
+        const clueNeighbours = [...clueCell.neighbors];
         if (!clueCell) continue;
-        const effectiveClueValue = nextClue.count - [...clueCell.neighbors].filter((cell) => cell.color === nextClue.color).length;
+        const effectiveClueValue = nextClue.count - clueNeighbours.filter((cell) => cell.color === nextClue.color).length;
 
         if (effectiveClueValue <= 0) continue;
         if (union.size > 0 && [...clueCell.neighbors.intersection(union)].filter((cell) => cell.color === null).length === 0) continue;
         if ([...clueSet].some((clue) => clue.color === nextClue.color)) continue;
 
         clueSet.add(nextClue);
-        depthFirstSearch(i + 1, union.union(new Set([...clueCell.neighbors].filter((cell) => cell.color === null))), count + effectiveClueValue);
+        depthFirstSearch(i + 1, union.union(new Set(clueNeighbours.filter((cell) => cell.color === null))), count + effectiveClueValue);
         clueSet.delete(nextClue);
       }
     }
@@ -593,25 +591,26 @@ class NMosaic {
       });
     }
 
+    this.cells.forEach((cell) => {
+      cell.color = null;
+    });
+
+    return this.solved();
+  }
+
+  solved(): boolean {
     let cluesSatisfied = true;
     this.clueMap.forEach((clues, cell) => {
+      const neighbourhood = [...(cell.neighbors ?? new Set())];
       clues.forEach((clue) => {
         const clueSatisfied =
-          [...cell.neighbors].filter((cell) => cell.color === clue.color)
+          neighbourhood.filter((cell) => cell.color === clue.color)
             .length === clue.count;
         if (!clueSatisfied) cluesSatisfied = false;
       });
     });
 
-    const solved =
-      this.cells.every((cell) => cell.color !== null || !cell.included) &&
-      cluesSatisfied;
-
-    this.cells.forEach((cell) => {
-      cell.color = null;
-    });
-
-    return solved;
+    return this.cells.every((cell) => cell.color !== null || !cell.included) && cluesSatisfied;
   }
 
   async backwardPuzzleGenerator(solve: () => Promise<boolean>): Promise<void> {
@@ -622,11 +621,10 @@ class NMosaic {
       solvable = await solve();
 
       tries++;
-      // usually only takes a dozen or so attempts, even for the weakest technique it almost never takes more than 20k attempts
-      if (tries > 100000) break;
+      if (tries > 1000) break;
     }
 
-    if (tries <= 100000) {
+    if (tries <= 1000) {
       console.log(`Found a solvable random pattern in ${tries} attempts`);
     } else {
       console.log(
@@ -740,8 +738,9 @@ class NMosaic {
     for (const cell of this.cells) {
       if (!cell.included) continue;
 
+      const neighbourhood = [...(cell.neighbors ?? new Set())];
       for (let c = 0; c < this.BOARD_COLORS; c++) {
-        let clueCount = [...cell.neighbors].filter(
+        let clueCount = neighbourhood.filter(
           (it) => it.solutionColor === c,
         ).length;
 
@@ -846,8 +845,9 @@ class NMosaic {
 
     // Clue constraints.
     clueMap.forEach((clues, cell) => {
+      const neighbourhood = [...(cell.neighbors ?? new Set())];
       clues.forEach((clue) => {
-        const neighborVars = [...cell.neighbors]
+        const neighborVars = neighbourhood
           .filter((neighbor) => neighbor.included)
           .map((neighbor) =>
             this.varId(neighbor.row, neighbor.col, clue.color),
@@ -927,8 +927,9 @@ class NMosaic {
 
     // Clue: exactly `count` of the clue cell's neighbours are colour `color`.
     clueMap.forEach((clues, cell) => {
+      const neighbourhood = [...(cell.neighbors ?? new Set())];
       clues.forEach((clue) => {
-        const neighborVars = [...cell.neighbors]
+        const neighborVars = neighbourhood
           .filter((neighbor) => neighbor.included)
           .map((neighbor) =>
             this.varId(neighbor.row, neighbor.col, clue.color),

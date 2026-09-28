@@ -206,18 +206,8 @@ class SquareGridNMosaicRenderer {
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
 
-    // Group clues by cell so we can render multi-clue cells properly.
-    const cluesByCell = new Map();
-    for (const clue of nMosaic.clues) {
-      if (clue.color === null) continue;
-      const key = `${clue.row},${clue.col}`;
-      if (!cluesByCell.has(key)) cluesByCell.set(key, []);
-      cluesByCell.get(key).push(clue);
-    }
-
-    for (const [cellKey, cellClues] of cluesByCell) {
+    for (const [clueCell, cellClues] of nMosaic.clueMap) {
       const clue = cellClues[0];
-      const clueCell = nMosaic.getCell(clue.row, clue.col);
 
       // Validate every clue on this cell; draw a red X if any is wrong.
       let anyInvalid = false;
@@ -477,20 +467,7 @@ class NMosaicGameController {
     // erase and keep experimenting instead of being stuck on "YOU WIN".
     nMosaic.puzzleComplete = false;
     if (!nMosaic.pencilMode) {
-      const allCluesValid = nMosaic.clues.every((clue) => {
-        const clueCell = nMosaic.getCell(clue.row, clue.col);
-        if (!clueCell) return false;
-        const guessCount = [...clueCell.neighbors].filter(
-          (neighbor) => neighbor.color === clue.color,
-        ).length;
-        return guessCount === clue.count;
-      });
-      if (
-        nMosaic.cells.every((cell) => !cell.included || cell.color !== null) &&
-        allCluesValid
-      ) {
-        nMosaic.puzzleComplete = true;
-      }
+      nMosaic.puzzleComplete = nMosaic.solved();
     }
     this.onChange();
   }

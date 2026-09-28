@@ -70,7 +70,7 @@
       colors: n.BOARD_COLORS,
       fraction: n.BOARD_FRACTION,
       included: n.cells.filter((c) => c.included).length,
-      clues: n.clues.length,
+      clues: [...n.clueMap.values()].flat().length,
       ms: Math.round(ms),
       randomTries: n.randomPuzzleTries,
       randomPatternFound: n.randomPatternFound ? "true" : "false",
@@ -171,7 +171,7 @@
         // run backward generation with exactly the chosen generation solver.
         await n.regenerate(w, h, colors, fraction, "random");
         if (genMethod === "sat") {
-          await n.backwardPuzzleGenerator(() => n.satHasUniqueSolution(n.clues));
+          await n.backwardPuzzleGenerator(() => n.satHasUniqueSolution(n.clueMap));
         } else {
           await n.backwardPuzzleGenerator(() =>
             n.techniqueSolve(genTechs.map((t) => t.fn)),
@@ -187,7 +187,7 @@
       n.satStats = [];
       n.techniqueCounts = {};
       if (solveSat) {
-        await n.satHasUniqueSolution(n.clues);
+        await n.satHasUniqueSolution(n.clueMap);
       } else {
         await n.techniqueSolve(solveTechs.map((t) => t.fn));
       }
@@ -196,7 +196,7 @@
       const row = collectRow(n, difficulty, i + 1, ms, verify, genCounts, finalSat, finalTech);
       batchRows.push(row);
       progressEl.textContent = `${i + 1}/${count}`;
-      statusEl.textContent = `#${i + 1}: ${difficulty} \u2014 ${n.clues.length} clues, ${n.cells.filter((c) => c.included).length} cells`;
+      statusEl.textContent = `#${i + 1}: ${difficulty} \u2014 ${[...n.clueMap.values()].flat().length} clues, ${n.cells.filter((c) => c.included).length} cells`;
       renderTable();
       await tick();
     }
@@ -485,28 +485,20 @@
     logEl.textContent = (logEl.textContent + "\n" + msg).trimStart();
     logEl.scrollTop = logEl.scrollHeight;
   }
-  function manualSolved() {
-    const allFilled = manual.cells.every((c) => !c.included || c.color !== null);
-    const cluesOk = manual.clues.every((cl) => {
-      const cell = manual.getCell(cl.row, cl.col);
-      if (!cell) return false;
-      return [...cell.neighbors].filter((n) => n.color === cl.color).length === cl.count;
-    });
-    return allFilled && cluesOk;
-  }
   function updateManualStatus() {
     const included = manual.cells.filter((c) => c.included).length;
     const filled = manual.cells.filter((c) => c.included && c.color !== null).length;
     let badClues = 0;
-    for (const cl of manual.clues) {
-      const cell = manual.getCell(cl.row, cl.col);
-      if (!cell) continue;
-      const count = [...cell.neighbors].filter((n) => n.color === cl.color).length;
-      if (count !== cl.count) badClues++;
-    }
+    manual.clueMap.forEach((clues, cell) => {
+      const neighbourhood = [...(cell.neighbors ?? new Set())];
+      clues.forEach((clue) => {
+        const count = neighbourhood.filter((n) => n.color === clue.color).length;
+        if (count !== clue.count) badClues++;
+      })
+    })
     const sat = summarizeSat(manual);
     const tries = manual.randomPuzzleTries > 0 ? ` randomTries=${manual.randomPuzzleTries}` : "";
-    const status = `cells=${filled}/${included} clues=${manual.clues.length} unsatisfiedClues=${badClues} solved=${manualSolved() ? "YES" : "no"}${tries} satCalls=${sat.calls}`;
+    const status = `cells=${filled}/${included} clues=${[...manual.clueMap.values()].flat().length} unsatisfiedClues=${badClues} solved=${manual.solved() ? "YES" : "no"}${tries} satCalls=${sat.calls}`;
     $("nmt_manualstatus").textContent = status;
   }
   const manualTechs = () =>
@@ -560,7 +552,7 @@
     // Reflect the seed genuinely used so the board can be reproduced.
     seedField.value = String(manual.SEED);
     manualRenderer.showSolution = false;
-    logLine(`done: ${manual.clues.length} clues, ${manual.cells.filter((c) => c.included).length} cells` + (manual.randomPuzzleTries > 0 ? `, solvable random pattern found in ${manual.randomPuzzleTries} tries` : ""));
+    logLine(`done: ${[...manual.clueMap.values()].flat().length} clues, ${manual.cells.filter((c) => c.included).length} cells` + (manual.randomPuzzleTries > 0 ? `, solvable random pattern found in ${manual.randomPuzzleTries} tries` : ""));
     updateManualStatus();
   }
   function applyOnce(key) {
@@ -681,7 +673,7 @@
   (async () => {
     await manual.regenerate(9, 9, 2, 0.75, "random");
     logLine(
-      `initial sandbox board: ${manual.clues.length} clues, ${manual.cells.filter((c) => c.included).length} cells`,
+      `initial sandbox board: ${[...manual.clueMap.values()].flat().length} clues, ${manual.cells.filter((c) => c.included).length} cells`,
     );
     updateManualStatus();
   })();
