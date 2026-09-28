@@ -472,6 +472,7 @@ class NMosaic {
     const allClues = [...nMosaic.clueMap.entries()].flatMap((entry) => entry[1]);
     const clueSet: Set<NMosaicClue> = new Set();
     const applicationList: Set<NMosaicClue>[] = [];
+    let applied = 0;
     function depthFirstSearch(lastIndex: number, union: Set<NMosaicCell>, count: number) {
       if (union.size > 0 && union.size === count) {
         applicationList.push(structuredClone(clueSet));
@@ -484,24 +485,23 @@ class NMosaic {
         const effectiveClueValue = nextClue.count - [...clueCell.neighbors].filter((cell) => cell.color === nextClue.color).length;
 
         if (effectiveClueValue <= 0) continue;
-        if ([...clueCell.neighbors.intersection(union)].filter((cell) => cell.color === null).length === 0) continue;
+        if (union.size > 0 && [...clueCell.neighbors.intersection(union)].filter((cell) => cell.color === null).length === 0) continue;
         if ([...clueSet].some((clue) => clue.color === nextClue.color)) continue;
 
         clueSet.add(nextClue);
-        depthFirstSearch(i + 1, union.union(clueCell.neighbors), count + effectiveClueValue);
+        depthFirstSearch(i + 1, union.union(new Set([...clueCell.neighbors].filter((cell) => cell.color === null))), count + effectiveClueValue);
         clueSet.delete(nextClue);
       }
     }
 
     depthFirstSearch(0, new Set(), 0);
-    if (applicationList.length > 0) console.log("AAAAAAAAAAAAAAAAAAAAAAAAA")
 
     applicationList.forEach((application) => {
       const clueCellMap: Map<NMosaicClue, Set<NMosaicCell>> = new Map();
       application.forEach((clue) => {
         const clueCell = nMosaic.getCell(clue.row, clue.col);
         if (!clueCell) return;
-        clueCellMap.set(clue, clueCell.neighbors);
+        clueCellMap.set(clue, new Set([...clueCell.neighbors].filter((cell) => cell.color === null)));
       });
       application.forEach((clue) => {
         clueCellMap.get(clue);
@@ -511,13 +511,17 @@ class NMosaic {
           clueCellMap.get(clue) ?? new Set<NMosaicCell>()
         );
 
-        affectedCells.forEach((cell) => cell.color = clue.color);
+        if (affectedCells.size) {
+          affectedCells.forEach((cell) => cell.color = clue.color);
+          applied++;
+        }
       })
     })
+    if (applied > 0) console.log("AAAAAAAAAAAAAAAAAAAAAAAAA");
 
     nMosaic.techniqueCounts["TotalNeighbourhoodSum"] =
-      (nMosaic.techniqueCounts["TotalNeighbourhoodSum"] ?? 0) + applicationList.length;
-    return applicationList.length;
+      (nMosaic.techniqueCounts["TotalNeighbourhoodSum"] ?? 0) + applied;
+    return applied;
   }
 
   async generateRecipePuzzle(
@@ -856,7 +860,7 @@ class NMosaic {
         }
       });
     });
-recordSatStats
+
     // Force already-assigned cells to keep their current colour.
     for (const cell of this.cells) {
       if (!cell.included || cell.solutionColor === null) continue;

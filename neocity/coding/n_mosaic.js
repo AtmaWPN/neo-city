@@ -274,6 +274,7 @@
       const allClues = [...nMosaic.clueMap.entries()].flatMap((entry) => entry[1]);
       const clueSet = /* @__PURE__ */ new Set();
       const applicationList = [];
+      let applied = 0;
       function depthFirstSearch(lastIndex, union, count) {
         if (union.size > 0 && union.size === count) {
           applicationList.push(structuredClone(clueSet));
@@ -284,21 +285,20 @@
           if (!clueCell) continue;
           const effectiveClueValue = nextClue.count - [...clueCell.neighbors].filter((cell) => cell.color === nextClue.color).length;
           if (effectiveClueValue <= 0) continue;
-          if ([...clueCell.neighbors.intersection(union)].filter((cell) => cell.color === null).length === 0) continue;
+          if (union.size > 0 && [...clueCell.neighbors.intersection(union)].filter((cell) => cell.color === null).length === 0) continue;
           if ([...clueSet].some((clue) => clue.color === nextClue.color)) continue;
           clueSet.add(nextClue);
-          depthFirstSearch(i + 1, union.union(clueCell.neighbors), count + effectiveClueValue);
+          depthFirstSearch(i + 1, union.union(new Set([...clueCell.neighbors].filter((cell) => cell.color === null))), count + effectiveClueValue);
           clueSet.delete(nextClue);
         }
       }
       depthFirstSearch(0, /* @__PURE__ */ new Set(), 0);
-      if (applicationList.length > 0) console.log("AAAAAAAAAAAAAAAAAAAAAAAAA");
       applicationList.forEach((application) => {
         const clueCellMap = /* @__PURE__ */ new Map();
         application.forEach((clue) => {
           const clueCell = nMosaic.getCell(clue.row, clue.col);
           if (!clueCell) return;
-          clueCellMap.set(clue, clueCell.neighbors);
+          clueCellMap.set(clue, new Set([...clueCell.neighbors].filter((cell) => cell.color === null)));
         });
         application.forEach((clue) => {
           clueCellMap.get(clue);
@@ -306,11 +306,15 @@
             (prev, curr) => curr[0] !== clue ? prev.difference(curr[1]) : prev,
             clueCellMap.get(clue) ?? /* @__PURE__ */ new Set()
           );
-          affectedCells.forEach((cell) => cell.color = clue.color);
+          if (affectedCells.size) {
+            affectedCells.forEach((cell) => cell.color = clue.color);
+            applied++;
+          }
         });
       });
-      nMosaic.techniqueCounts["TotalNeighbourhoodSum"] = (nMosaic.techniqueCounts["TotalNeighbourhoodSum"] ?? 0) + applicationList.length;
-      return applicationList.length;
+      if (applied > 0) console.log("AAAAAAAAAAAAAAAAAAAAAAAAA");
+      nMosaic.techniqueCounts["TotalNeighbourhoodSum"] = (nMosaic.techniqueCounts["TotalNeighbourhoodSum"] ?? 0) + applied;
+      return applied;
     }
     async generateRecipePuzzle(recipeGenerators) {
       while (true) {
@@ -569,7 +573,6 @@
           }
         });
       });
-      recordSatStats;
       for (const cell of this.cells) {
         if (!cell.included || cell.solutionColor === null) continue;
         clauses.push([this.varId(cell.row, cell.col, cell.solutionColor)]);
