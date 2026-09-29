@@ -142,6 +142,7 @@ class NMosaic {
   puzzleComplete: boolean = false;
   selectedColor: number = 0;
   pencilMode: boolean = false;
+  performanceTracker: Map<string, { stopwatch: DOMHighResTimeStamp; total: number }>;
 
   // Instrumentation for the test dashboard (n_mosaic_test.html).
   satStats: Array<{
@@ -432,13 +433,16 @@ class NMosaic {
       return value;
     }
 
-    nMosaic.clueMap.forEach((clues, cell) => {
-      const neighbourhood = cell.neighbors;
+    nMosaic.clueMap.forEach((clues, clueCell) => {
+      const neighbourhood = clueCell.neighbors;
       clues.forEach((clue) => {
         for (let dRow = -2; dRow <= 2; dRow++) {
           for (let dCol = -2; dCol <= 2; dCol++) {
             if ((dRow === 0 && dCol === 0) || dRow + dCol < 0) continue;
-            const otherCell = this.getCell(cell.row + dRow, cell.col + dCol);
+            const otherCell = this.getCell(
+              clueCell.row + dRow,
+              clueCell.col + dCol,
+            );
 
             if (!otherCell) continue;
             const otherCellNeighbours = otherCell.neighbors;
@@ -446,8 +450,8 @@ class NMosaic {
 
             subClues?.forEach((subClue) => {
               if (
-                !getEmptyArea(otherCell).every((cell) =>
-                  getEmptyArea(cell).includes(cell),
+                !getEmptyArea(otherCell).every((emptyNeighbour) =>
+                  getEmptyArea(clueCell).includes(emptyNeighbour),
                 )
               )
                 return;
@@ -461,8 +465,8 @@ class NMosaic {
                 otherCellNeighbours,
               );
 
-              const clueExclusiveArea = getEmptyArea(cell).filter(
-                (cell) => !getEmptyArea(otherCell).includes(cell),
+              const clueExclusiveArea = getEmptyArea(clueCell).filter(
+                (emptyCell) => !getEmptyArea(otherCell).includes(emptyCell),
               );
               if (clue.color === subClue.color) {
                 if (
@@ -476,12 +480,16 @@ class NMosaic {
                   });
                 } else if (
                   clueExclusiveArea.length > 0 &&
-                  effectiveClueValue - effectiveSubClueValue === 0
+                  effectiveClueValue - effectiveSubClueValue === 0 &&
+                  clueExclusiveArea.some((exclusiveCell) =>
+                    nMosaic.candidates[exclusiveCell.row][exclusiveCell.col]
+                      .has(clue.color),
+                  )
                 ) {
                   applicationSet.push({
                     cells: clueExclusiveArea,
                     color: clue.color,
-                    inverted: true
+                    inverted: true,
                   });
                 }
               } else {
@@ -503,21 +511,26 @@ class NMosaic {
       });
     });
 
+    let applied = 0;
     applicationSet.forEach((application) => {
       application.cells.forEach((cell) => {
         if (!application.inverted) {
-          cell.color = application.color;
-          nMosaic.updateCandidateBoard(cell);
-        } else {
-          nMosaic.candidates[cell.row][cell.col].delete(cell.color);
+          if (cell.color === null) {
+            cell.color = application.color;
+            nMosaic.updateCandidateBoard(cell);
+            applied++;
+          }
+        } else if (
+          nMosaic.candidates[cell.row][cell.col].delete(application.color)
+        ) {
+          applied++;
         }
       });
     });
 
     nMosaic.techniqueCounts["SimpleSubsetRemainder"] =
-      (nMosaic.techniqueCounts["SimpleSubsetRemainder"] ?? 0) +
-      applicationSet.length;
-    return applicationSet.length;
+      (nMosaic.techniqueCounts["SimpleSubsetRemainder"] ?? 0) + applied;
+    return applied;
   }
 
   // This technique only searches for TNS occurences in n or fewer clues (where n is the number of colors in the puzzle)

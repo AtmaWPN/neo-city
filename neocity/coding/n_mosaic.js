@@ -253,19 +253,22 @@
         }
         return value;
       }
-      nMosaic.clueMap.forEach((clues, cell) => {
-        const neighbourhood = cell.neighbors;
+      nMosaic.clueMap.forEach((clues, clueCell) => {
+        const neighbourhood = clueCell.neighbors;
         clues.forEach((clue) => {
           for (let dRow = -2; dRow <= 2; dRow++) {
             for (let dCol = -2; dCol <= 2; dCol++) {
               if (dRow === 0 && dCol === 0 || dRow + dCol < 0) continue;
-              const otherCell = this.getCell(cell.row + dRow, cell.col + dCol);
+              const otherCell = this.getCell(
+                clueCell.row + dRow,
+                clueCell.col + dCol
+              );
               if (!otherCell) continue;
               const otherCellNeighbours = otherCell.neighbors;
               const subClues = nMosaic.clueMap.get(otherCell);
               subClues?.forEach((subClue) => {
                 if (!getEmptyArea(otherCell).every(
-                  (cell2) => getEmptyArea(cell2).includes(cell2)
+                  (emptyNeighbour) => getEmptyArea(clueCell).includes(emptyNeighbour)
                 ))
                   return;
                 const effectiveClueValue = getEffectiveClueValue(
@@ -276,8 +279,8 @@
                   subClue,
                   otherCellNeighbours
                 );
-                const clueExclusiveArea = getEmptyArea(cell).filter(
-                  (cell2) => !getEmptyArea(otherCell).includes(cell2)
+                const clueExclusiveArea = getEmptyArea(clueCell).filter(
+                  (emptyCell) => !getEmptyArea(otherCell).includes(emptyCell)
                 );
                 if (clue.color === subClue.color) {
                   if (clueExclusiveArea.length > 0 && effectiveClueValue - effectiveSubClueValue === clueExclusiveArea.length) {
@@ -285,7 +288,9 @@
                       cells: clueExclusiveArea,
                       color: clue.color
                     });
-                  } else if (clueExclusiveArea.length > 0 && effectiveClueValue - effectiveSubClueValue === 0) {
+                  } else if (clueExclusiveArea.length > 0 && effectiveClueValue - effectiveSubClueValue === 0 && clueExclusiveArea.some(
+                    (exclusiveCell) => nMosaic.candidates[exclusiveCell.row][exclusiveCell.col].has(clue.color)
+                  )) {
                     applicationSet.push({
                       cells: clueExclusiveArea,
                       color: clue.color,
@@ -305,18 +310,22 @@
           }
         });
       });
+      let applied = 0;
       applicationSet.forEach((application) => {
         application.cells.forEach((cell) => {
           if (!application.inverted) {
-            cell.color = application.color;
-            nMosaic.updateCandidateBoard(cell);
-          } else {
-            nMosaic.candidates[cell.row][cell.col].delete(cell.color);
+            if (cell.color === null) {
+              cell.color = application.color;
+              nMosaic.updateCandidateBoard(cell);
+              applied++;
+            }
+          } else if (nMosaic.candidates[cell.row][cell.col].delete(application.color)) {
+            applied++;
           }
         });
       });
-      nMosaic.techniqueCounts["SimpleSubsetRemainder"] = (nMosaic.techniqueCounts["SimpleSubsetRemainder"] ?? 0) + applicationSet.length;
-      return applicationSet.length;
+      nMosaic.techniqueCounts["SimpleSubsetRemainder"] = (nMosaic.techniqueCounts["SimpleSubsetRemainder"] ?? 0) + applied;
+      return applied;
     }
     // This technique only searches for TNS occurences in n or fewer clues (where n is the number of colors in the puzzle)
     //  and only finds minimal TNS sets
