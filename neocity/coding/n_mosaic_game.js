@@ -208,6 +208,7 @@ class SquareGridNMosaicRenderer {
 
     for (const [clueCell, cellClues] of nMosaic.clueMap) {
       const clue = cellClues[0];
+      if (!clue) console.log("AAAAAAAAAA", nMosaic.clueMap);
 
       // Validate every clue on this cell; draw a red X if any is wrong.
       let anyInvalid = false;
@@ -318,6 +319,64 @@ class SquareGridNMosaicRenderer {
         this.WIDTH,
       );
     }
+    this.drawLoadingOverlay(nMosaic);
+  }
+
+  // Dimmed overlay with an animated spinner and a message, shown while
+  // nMosaic is generating a new puzzle. Drawn last so it covers the board.
+  drawLoadingOverlay(nMosaic) {
+    if (!nMosaic.generating) return;
+
+    const ctx = this.ctx;
+    const cx = this.WIDTH / 2;
+    const cy = this.HEIGHT / 2;
+    const radius = 52;
+    const lineWidth = 12;
+
+    // Half-transparent veil so the half-built board stays readable behind it.
+    ctx.fillStyle = "rgba(0, 0, 0, 0.45)";
+    ctx.fillRect(0, 0, this.WIDTH, this.HEIGHT);
+
+    // Static track ring.
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.25)";
+    ctx.lineWidth = lineWidth;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, 2 * Math.PI);
+    ctx.stroke();
+
+    // Rotating arc (one full turn per second), as a polyline so it works on
+    // any browser regardless of canvas arc-pathing support.
+    const t = (performance.now() / 1000) % 1;
+    const startAngle = t * 2 * Math.PI;
+    const sweep = (4 / 3) * Math.PI;
+    const segments = 48;
+    ctx.strokeStyle = "#ffffff";
+    ctx.lineWidth = lineWidth;
+    ctx.lineCap = "round";
+    ctx.beginPath();
+    for (let i = 0; i <= segments; i++) {
+      const a = startAngle + (i / segments) * sweep;
+      const x = cx + radius * Math.cos(a);
+      const y = cy + radius * Math.sin(a);
+      if (i === 0) {
+        ctx.moveTo(x, y);
+      } else {
+        ctx.lineTo(x, y);
+      }
+    }
+    ctx.stroke();
+
+    // Message underneath the spinner.
+    ctx.font = `bold 26px "Roboto Mono", monospace`;
+    ctx.fillStyle = "#ffffff";
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const difficulty =
+      nMosaic.BOARD_DIFFICULTY && nMosaic.BOARD_DIFFICULTY !== "random"
+        ? nMosaic.BOARD_DIFFICULTY
+        : "";
+    const message = `Generating${difficulty ? ` ${difficulty}` : ""} puzzle…`;
+    ctx.fillText(message, cx, cy + radius + lineWidth + 40);
   }
 }
 
@@ -463,12 +522,7 @@ class NMosaicGameController {
     }
     if (!changed) return;
 
-    // Any modification resumes play even after a win, so the player can
-    // erase and keep experimenting instead of being stuck on "YOU WIN".
-    nMosaic.puzzleComplete = false;
-    if (!nMosaic.pencilMode) {
-      nMosaic.puzzleComplete = nMosaic.solved();
-    }
+    nMosaic.puzzleComplete = nMosaic.solved();
     this.onChange();
   }
 
@@ -518,7 +572,6 @@ function nMosaicMain() {
     "advanced",
     "expert",
     "grandmaster",
-    "sat",
     "random",
   ];
 
