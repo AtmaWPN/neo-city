@@ -508,7 +508,14 @@
   // Make the sandbox board playable: same input handling as the main game
   // page (paint, erase, pencil marks, palette, wheel, number keys), with the
   // sandbox status line refreshed after each stroke.
-  new NMosaicGameController(manualRenderer, manual, manualCanvas, manualPalette, updateManualStatus);
+  const manualController = new NMosaicGameController(
+    manualRenderer,
+    manual,
+    manualCanvas,
+    manualPalette,
+    updateManualStatus,
+  );
+
   const logEl = $("nmt_log");
   function logLine(msg) {
     logEl.textContent = (logEl.textContent + "\n" + msg).trimStart();
@@ -700,12 +707,14 @@
   $("nmt_solve_techniques").onclick = syncMethodUI;
   $("nmt_solve_sat").onclick = syncMethodUI;
   syncMethodUI();
+  let hintTick = 0;
   function loop() {
     if (manualBody.style.display !== "none") {
       manualRenderer.drawBackground(manual);
       manualRenderer.drawBoard(manual);
       manualRenderer.drawPalette(manual);
     }
+    if (++hintTick % 30 === 0) manualController.refreshHintExpiry();
     requestAnimationFrame(loop);
   }
   requestAnimationFrame(loop);

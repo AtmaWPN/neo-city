@@ -160,23 +160,26 @@
       }
       return recipes;
     }
-    solveSimpleRemainder(nMosaic) {
+    solveSimpleRemainder(nMosaic, hint = false) {
       let applicationSet = [];
-      nMosaic.clueMap.forEach((clues, cell) => {
+      for (const entry of nMosaic.clueMap) {
+        const cell = entry[0];
+        const clues = entry[1];
         const neighbourhood = cell.neighbors;
-        clues.forEach((clue) => {
+        for (const clue of clues) {
           const adjustedClue = clue.count - neighbourhood.filter((cell2) => cell2.color === clue.color).length;
           const emptyCells = neighbourhood.filter((cell2) => cell2.color === null);
           if (emptyCells.length > 0 && adjustedClue === emptyCells.length) {
+            if (hint) return { applications: 0, hintClues: [cell] };
             applicationSet.push({ cells: emptyCells, color: clue.color });
           }
-        });
-      });
+        }
+      }
       applicationSet.forEach((application) => {
         application.cells.forEach((cell) => cell.color = application.color);
       });
       nMosaic.techniqueCounts["SimpleRemainder"] = (nMosaic.techniqueCounts["SimpleRemainder"] ?? 0) + applicationSet.length;
-      return applicationSet.length;
+      return { applications: applicationSet.length };
     }
     buildCandidateBoard() {
       const candidateBoard = [];
@@ -206,7 +209,8 @@
     updateCandidateBoard(cell) {
       for (let dRow = -1; dRow <= 1; dRow++) {
         for (let dCol = -1; dCol <= 1; dCol++) {
-          if (dRow === 0 && dCol === 0) this.candidates[cell.row][cell.col].clear();
+          if (dRow === 0 && dCol === 0)
+            this.candidates[cell.row][cell.col].clear();
           const clueCell = this.getCell(cell.row + dRow, cell.col + dCol);
           this.clueMap.get(clueCell)?.forEach((clue) => {
             if (clue.count === clueCell.neighbors.filter((cell2) => cell2.color === clue.color).length) {
@@ -218,35 +222,42 @@
         }
       }
     }
-    solveLastCandidate(nMosaic) {
+    solveLastCandidate(nMosaic, hint = false) {
       if (nMosaic.candidates === null) nMosaic.buildCandidateBoard();
       let applicationSet = [];
-      nMosaic.cells.forEach((cell) => {
-        if (nMosaic.candidates[cell.row][cell.col].size !== 1) return;
-        cell.color = [...nMosaic.candidates[cell.row][cell.col]][0];
-      });
+      for (const cell of nMosaic.cells) {
+        if (nMosaic.candidates[cell.row][cell.col].size !== 1) continue;
+        if (hint) return { applications: 0, hintClues: [cell] };
+        applicationSet.push({
+          cell,
+          color: [...nMosaic.candidates[cell.row][cell.col]][0]
+        });
+      }
       applicationSet.forEach((application) => {
         application.cell.color = application.color;
         nMosaic.updateCandidateBoard(application.cell);
       });
       nMosaic.techniqueCounts["LastCandidate"] = (nMosaic.techniqueCounts["LastCandidate"] ?? 0) + applicationSet.length;
-      return applicationSet.length;
+      return { applications: applicationSet.length };
     }
-    solveSimpleCandidateRemainder(nMosaic) {
+    solveSimpleCandidateRemainder(nMosaic, hint = false) {
       if (nMosaic.candidates === null) nMosaic.buildCandidateBoard();
       let applicationSet = [];
-      nMosaic.clueMap.forEach((clues, cell) => {
+      for (const entry of nMosaic.clueMap) {
+        const cell = entry[0];
+        const clues = entry[1];
         const neighbourhood = cell.neighbors;
-        clues.forEach((clue) => {
+        for (const clue of clues) {
           const adjustedClue = clue.count - neighbourhood.filter((cell2) => cell2.color === clue.color).length;
           const candidateCells = neighbourhood.filter(
             (cell2) => nMosaic.candidates[cell2.row][cell2.col].has(clue.color)
           );
           if (candidateCells.length > 0 && adjustedClue === candidateCells.length) {
+            if (hint) return { applications: 0, hintClues: [cell] };
             applicationSet.push({ cells: candidateCells, color: clue.color });
           }
-        });
-      });
+        }
+      }
       applicationSet.forEach((application) => {
         application.cells.forEach((cell) => {
           cell.color = application.color;
@@ -254,9 +265,9 @@
         });
       });
       nMosaic.techniqueCounts["SimpleCandidateRemainder"] = (nMosaic.techniqueCounts["SimpleCandidateRemainder"] ?? 0) + applicationSet.length;
-      return applicationSet.length;
+      return { applications: applicationSet.length };
     }
-    solveSimpleSubsetRemainder(nMosaic) {
+    solveSimpleSubsetRemainder(nMosaic, hint = false) {
       if (nMosaic.candidates === null) nMosaic.buildCandidateBoard();
       const cells = nMosaic.cells;
       const boardWidth = nMosaic.BOARD_WIDTH;
@@ -292,8 +303,10 @@
         return false;
       };
       let applicationSet = [];
-      nMosaic.clueMap.forEach((clues, clueCell) => {
-        clues.forEach((clue) => {
+      for (const entry of nMosaic.clueMap) {
+        const clueCell = entry[0];
+        const clues = entry[1];
+        for (const clue of clues) {
           const emptyArea = emptyMaskOf.get(clue);
           const effectiveClueValue = clue.count - coloredOf.get(clue);
           for (let dRow = -2; dRow <= 2; dRow++) {
@@ -305,20 +318,31 @@
               );
               if (!otherCell) continue;
               const subClues = nMosaic.clueMap.get(otherCell);
-              subClues?.forEach((subClue) => {
+              if (!subClues) continue;
+              for (const subClue of subClues) {
                 const subEmptyArea = emptyMaskOf.get(subClue);
-                if ((subEmptyArea & ~emptyArea) !== 0n) return;
+                if ((subEmptyArea & ~emptyArea) !== 0n) continue;
                 const effectiveSubClueValue = subClue.count - coloredOf.get(subClue);
                 const exclusiveArea = emptyArea & ~subEmptyArea;
                 const exclusiveSize = popcountMask(exclusiveArea);
-                if (exclusiveSize === 0) return;
+                if (exclusiveSize === 0) continue;
                 if (clue.color === subClue.color) {
                   if (effectiveClueValue - effectiveSubClueValue === exclusiveSize) {
+                    if (hint)
+                      return {
+                        applications: 0,
+                        hintClues: [clueCell, otherCell]
+                      };
                     applicationSet.push({
                       mask: exclusiveArea,
                       color: clue.color
                     });
                   } else if (effectiveClueValue - effectiveSubClueValue === 0 && hasColorCandidate(exclusiveArea, clue.color)) {
+                    if (hint)
+                      return {
+                        applications: 0,
+                        hintClues: [clueCell, otherCell]
+                      };
                     applicationSet.push({
                       mask: exclusiveArea,
                       color: clue.color,
@@ -326,16 +350,18 @@
                     });
                   }
                 } else if (effectiveClueValue - (emptySizeOf.get(subClue) - effectiveSubClueValue) === exclusiveSize) {
+                  if (hint)
+                    return { applications: 0, hintClues: [clueCell, otherCell] };
                   applicationSet.push({
                     mask: exclusiveArea,
                     color: clue.color
                   });
                 }
-              });
+              }
             }
           }
-        });
-      });
+        }
+      }
       let applied = 0;
       applicationSet.forEach((application) => {
         let mask = application.mask;
@@ -355,15 +381,15 @@
         }
       });
       nMosaic.techniqueCounts["SimpleSubsetRemainder"] = (nMosaic.techniqueCounts["SimpleSubsetRemainder"] ?? 0) + applied;
-      return applied;
+      return { applications: applied };
     }
     // This technique only searches for TNS occurences in n or fewer clues (where n is the number of colors in the puzzle)
     //  and only finds minimal TNS sets
-    solveTotalNeighbourhoodSum(nMosaic) {
+    solveTotalNeighbourhoodSum(nMosaic, hint = false) {
       const allClues = [...nMosaic.clueMap.entries()].flatMap(
         (entry) => entry[1]
       );
-      if (allClues.length === 0) return 0;
+      if (allClues.length === 0) return { applications: 0 };
       const cells = nMosaic.cells;
       const boardWidth = nMosaic.BOARD_WIDTH;
       const cellBit = (cell) => 1n << BigInt(cell.row * boardWidth + cell.col);
@@ -413,6 +439,14 @@
         }
       }
       depthFirstSearch(0, 0n, 0, 0);
+      if (hint) {
+        if (applicationSets.length <= 0) return { applications: 0 };
+        const application = applicationSets[0];
+        return {
+          applications: 0,
+          hintClues: application.map((clueIdx) => clueCellOf[clueIdx])
+        };
+      }
       let applied = 0;
       applicationSets.forEach((application) => {
         application.forEach((clueIdx) => {
@@ -441,7 +475,7 @@
         });
       });
       nMosaic.techniqueCounts["TotalNeighbourhoodSum"] = (nMosaic.techniqueCounts["TotalNeighbourhoodSum"] ?? 0) + applied;
-      return applied;
+      return { applications: applied };
     }
     async generateRecipePuzzle(recipeGenerators) {
       while (true) {
@@ -489,7 +523,7 @@
       while (!done) {
         done = true;
         techniqueSolvers.forEach((solver) => {
-          while (solver(this) > 0) {
+          while (solver(this).applications > 0) {
             done = false;
           }
         });
@@ -558,10 +592,7 @@
         if (!removedClueCell) throw new Error("Clue Cell Not Found");
         const newClueList = this.clueMap.get(removedClueCell)?.filter((clue) => clue.color !== removedClue.color) ?? [];
         if (newClueList.length > 0) {
-          this.clueMap.set(
-            removedClueCell,
-            newClueList
-          );
+          this.clueMap.set(removedClueCell, newClueList);
         } else {
           this.clueMap.delete(removedClueCell);
         }
@@ -575,6 +606,24 @@
           );
         }
       }
+    }
+    getHint() {
+      const techniques = [
+        this.solveSimpleRemainder,
+        this.solveLastCandidate,
+        this.solveSimpleCandidateRemainder,
+        this.solveSimpleSubsetRemainder,
+        this.solveTotalNeighbourhoodSum
+      ];
+      let hint = [];
+      for (const technique of techniques) {
+        const techniqueHint = technique(this, true).hintClues;
+        if ((techniqueHint?.length ?? 0) > 0) {
+          hint = techniqueHint;
+          break;
+        }
+      }
+      return hint;
     }
     async puzzleGeneratorFactory() {
       switch (this.BOARD_DIFFICULTY) {

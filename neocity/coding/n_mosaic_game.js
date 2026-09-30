@@ -18,6 +18,8 @@ class SquareGridNMosaicRenderer {
   PALETTE_WIDTH;
   PALETTE_HEIGHT;
   showSolution = false;
+  /** Cells returned by the last Hint() click; drawn highlighted on the board. */
+  hintCells = [];
 
   constructor(canvas, paletteCanvas) {
     this.ctx = canvas.getContext("2d");
@@ -56,12 +58,11 @@ class SquareGridNMosaicRenderer {
     this.paletteCtx.fillStyle = "#808080";
     this.paletteCtx.fillRect(0, 0, this.PALETTE_WIDTH, this.PALETTE_HEIGHT);
 
-    const swatchSize = 44;
-    const gap = 10;
-    const spacing = swatchSize + gap;
-    const totalHeight = nMosaic.BOARD_COLORS * spacing - gap;
-    const startX = (this.PALETTE_WIDTH - swatchSize) / 2;
-    const startY = (this.PALETTE_HEIGHT - totalHeight) / 2;
+    const layout = this.paletteLayout(nMosaic);
+    const swatchSize = layout.swatchSize;
+    const spacing = layout.spacing;
+    const startX = layout.startX;
+    const startY = layout.startY;
 
     for (let i = 0; i < nMosaic.BOARD_COLORS; i++) {
       const x = startX;
@@ -77,11 +78,103 @@ class SquareGridNMosaicRenderer {
       }
     }
 
-    // Pencil-mode toggle button at the bottom of the palette.
-    const buttonSize = 44;
-    const bx = (this.PALETTE_WIDTH - buttonSize) / 2;
-    const by = this.PALETTE_HEIGHT - buttonSize - 15;
-    this.drawPencilButton(nMosaic, bx, by, buttonSize);
+    // Hint + pencil buttons stacked at the bottom of the palette.
+    this.drawHintButton(nMosaic, layout.hintX, layout.hintY, layout.buttonSize);
+    this.drawPencilButton(nMosaic, layout.pencilX, layout.pencilY, layout.buttonSize);
+  }
+
+  // Palette geometry, shared by drawPalette and the palette-click hit tests.
+  paletteLayout(nMosaic) {
+    const swatchSize = 44;
+    const gap = 10;
+    const spacing = swatchSize + gap;
+    const totalHeight = nMosaic.BOARD_COLORS * spacing - gap;
+    const startX = (this.PALETTE_WIDTH - swatchSize) / 2;
+    const startY = (this.PALETTE_HEIGHT - totalHeight) / 2;
+
+    // Two buttons stacked at the bottom; shrink them when many colour
+    // swatches leave little room below the grid.
+    const bottomSpace = this.PALETTE_HEIGHT - (startY + totalHeight);
+    const buttonSize = Math.min(
+      44,
+      Math.max(22, Math.floor((bottomSpace - 24) / 2)),
+    );
+    const buttonX = (this.PALETTE_WIDTH - buttonSize) / 2;
+    return {
+      swatchSize,
+      spacing,
+      startX,
+      startY,
+      buttonSize,
+      hintX: buttonX,
+      hintY: this.PALETTE_HEIGHT - buttonSize - 15 - buttonSize - 8,
+      pencilX: buttonX,
+      pencilY: this.PALETTE_HEIGHT - buttonSize - 15,
+    };
+  }
+
+  drawHintButton(nMosaic, x, y, size) {
+    const g = this.paletteCtx;
+
+    g.fillStyle = "#606060";
+    g.fillRect(x, y, size, size);
+    g.strokeStyle = "#000000";
+    g.lineWidth = 2;
+    g.strokeRect(x, y, size, size);
+
+    // Lightbulb: a circular glass bulb over a ridged screw base.
+    const cx = x + size / 2;
+    const cy = y + size / 2;
+    const s = size * 0.5;
+
+    // Screw base first, so the glass can overlap its neck.
+    const baseWidth = s * 0.56;
+    const baseTop = cy + s * 0.28;
+    const baseBottom = cy + s * 0.52;
+    g.fillStyle = "#c8c8c8";
+    g.fillRect(cx - baseWidth / 2, baseTop, baseWidth, baseBottom - baseTop);
+    g.strokeStyle = "#7a7a7a";
+    g.lineWidth = 1;
+    for (let i = 1; i <= 3; i++) {
+      const yy = baseTop + (baseBottom - baseTop) * (i / 4);
+      g.beginPath();
+      g.moveTo(cx - baseWidth / 2, yy);
+      g.lineTo(cx + baseWidth / 2, yy);
+      g.stroke();
+    }
+
+    // Glass bulb: a plain circle, sitting on the base.
+    const radius = s * 0.4;
+    const glassCx = cx;
+    const glassCy = cy - s * 0.1;
+    g.fillStyle = "#f8ef8a";
+    g.beginPath();
+    g.arc(glassCx, glassCy, radius, 0, 2 * Math.PI);
+    g.closePath();
+    g.fill();
+    g.strokeStyle = "#a08a00";
+    g.lineWidth = 1.5;
+    g.stroke();
+
+    // Glint highlight on the upper-left of the glass.
+    g.strokeStyle = "#ffffff";
+    g.lineWidth = 2;
+    g.beginPath();
+    g.arc(
+      glassCx - radius * 0.35,
+      glassCy - radius * 0.45,
+      radius * 0.28,
+      Math.PI * 1.15,
+      Math.PI * 1.85,
+    );
+    g.stroke();
+
+    // While a hint is displayed the button lights up like the pencil does.
+    if (this.hintCells.length > 0) {
+      g.strokeStyle = "#ffffff";
+      g.lineWidth = 3;
+      g.strokeRect(x, y, size, size);
+    }
   }
 
   drawPencilButton(nMosaic, x, y, size) {
@@ -206,7 +299,13 @@ class SquareGridNMosaicRenderer {
     this.ctx.textAlign = "center";
     this.ctx.textBaseline = "middle";
 
-    for (const [clueCell, cellClues] of nMosaic.clueMap) {
+    // Clues are only final once generation completes: the generator mutates
+    // the clue map as it places recipes, so don't render them while a puzzle
+    // is being generated — the loading overlay's veil is translucent and
+    // would show half-built clues underneath it.
+    const clueEntries = nMosaic.generating ? [] : nMosaic.clueMap;
+
+    for (const [clueCell, cellClues] of clueEntries) {
       const clue = cellClues[0];
       if (!clue) console.log("AAAAAAAAAA", nMosaic.clueMap);
 
@@ -306,6 +405,32 @@ class SquareGridNMosaicRenderer {
       }
     }
 
+    // Hint highlight: bright border + soft tint on the cells returned by
+    // nMosaic.getHint() while a hint is currently displayed.
+    if (this.hintCells.length > 0) {
+      for (const cell of this.hintCells) {
+        if (!cell.included) continue;
+        this.ctx.fillStyle = "rgba(255, 235, 120, 0.28)";
+        this.ctx.fillRect(
+          cell.col * squareWidth + 1,
+          cell.row * squareHeight + 1,
+          squareWidth - 2,
+          squareHeight - 2,
+        );
+      }
+      this.ctx.strokeStyle = "#ffd23f";
+      this.ctx.lineWidth = Math.max(2, Math.min(squareWidth, squareHeight) * 0.14);
+      for (const cell of this.hintCells) {
+        if (!cell.included) continue;
+        this.ctx.strokeRect(
+          cell.col * squareWidth + 1.5,
+          cell.row * squareHeight + 1.5,
+          squareWidth - 3,
+          squareHeight - 3,
+        );
+      }
+    }
+
     if (nMosaic.puzzleComplete) {
       this.ctx.font = `bold 96px "Roboto Mono", monospace`;
       this.ctx.fillStyle = "#ffffff";
@@ -380,6 +505,16 @@ class SquareGridNMosaicRenderer {
   }
 }
 
+// Do two hint results select the same cells? Compared by object identity:
+// getHint() always returns cells from the current nMosaic.cells array, so two
+// identical hints on an unchanged board reuse the same cell objects, while a
+// regenerated board (or an actually different deduction) produces different
+// references — even if the co-ordinates happen to match.
+function sameHintCells(displayed, current) {
+  if (displayed.length !== current.length) return false;
+  return displayed.every((cell) => current.includes(cell));
+}
+
 // Shared input handling for a NMosaic board: painting cells, erasing,
 // pencil marks, palette selection, colour cycling and win detection.
 // Used by both the main game page and the test dashboard sandbox.
@@ -412,27 +547,37 @@ class NMosaicGameController {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    const swatchSize = 44;
-    const gap = 10;
-    const spacing = swatchSize + gap;
+    const layout = this.renderer.paletteLayout(nMosaic);
+    const buttonSize = layout.buttonSize;
+
+    // Hint button (top of the two bottom buttons): re-ask the puzzle for the
+    // next deduction and show it. A hint is never refreshed implicitly — the
+    // highlight only leaves once getHint() starts answering differently.
+    if (
+      x >= layout.hintX - 5 &&
+      x <= layout.hintX + buttonSize + 5 &&
+      y >= layout.hintY - 5 &&
+      y <= layout.hintY + buttonSize + 5
+    ) {
+      this.showHint();
+      return;
+    }
 
     // Pencil-mode toggle button at the bottom of the palette.
-    const buttonSize = 44;
-    const pencilX = (this.renderer.PALETTE_WIDTH - buttonSize) / 2;
-    const pencilY = this.renderer.PALETTE_HEIGHT - buttonSize - 15;
     if (
-      x >= pencilX - 5 &&
-      x <= pencilX + buttonSize + 5 &&
-      y >= pencilY - 5 &&
-      y <= pencilY + buttonSize + 5
+      x >= layout.pencilX - 5 &&
+      x <= layout.pencilX + buttonSize + 5 &&
+      y >= layout.pencilY - 5 &&
+      y <= layout.pencilY + buttonSize + 5
     ) {
       nMosaic.pencilMode = !nMosaic.pencilMode;
       return;
     }
 
-    const totalHeight = nMosaic.BOARD_COLORS * spacing - gap;
-    const startX = (this.renderer.PALETTE_WIDTH - swatchSize) / 2;
-    const startY = (this.renderer.PALETTE_HEIGHT - totalHeight) / 2;
+    const swatchSize = layout.swatchSize;
+    const spacing = layout.spacing;
+    const startX = layout.startX;
+    const startY = layout.startY;
 
     if (x < startX - 5 || x > startX + swatchSize + 5) return;
 
@@ -448,6 +593,21 @@ class NMosaicGameController {
       return;
 
     nMosaic.selectedColor = index;
+  }
+
+  // Ask the puzzle for the current next deduction and highlight it. Called
+  // only when the player clicks the hint button — never implicitly.
+  showHint() {
+    this.renderer.hintCells = this.nMosaic.getHint();
+  }
+
+  // Drop the displayed hint once nMosaic.getHint() stops returning it. Only
+  // ever *clears*: showing a fresh hint is strictly the button's job.
+  refreshHintExpiry() {
+    if (this.renderer.hintCells.length === 0) return;
+    if (!sameHintCells(this.renderer.hintCells, this.nMosaic.getHint())) {
+      this.renderer.hintCells = [];
+    }
   }
 
   changeSelectedColor(direction) {
@@ -503,6 +663,7 @@ class NMosaicGameController {
 
     const cell = nMosaic.getCell(row, col);
     if (cell === null || !cell.included) return;
+    const wasColored = cell.color !== null;
 
     let changed;
     if (nMosaic.pencilMode) {
@@ -522,8 +683,26 @@ class NMosaicGameController {
     }
     if (!changed) return;
 
+    // Keep the hint solvers' candidate board in sync with what the player
+    // paints. Colouring a previously-empty cell applies the same incremental
+    // updateCandidateBoard() the solvers use. Erasing or re-colouring is the
+    // opposite direction (updateCandidateBoard only ever deletes candidates,
+    // never restores them), so drop the board and let the next hint rebuild
+    // it from the current position.
+    if (!nMosaic.pencilMode) {
+      if (this.paintButton === 0 && !wasColored) {
+        if (nMosaic.candidates === null) nMosaic.buildCandidateBoard();
+        nMosaic.updateCandidateBoard(cell);
+      } else {
+        nMosaic.candidates = null;
+      }
+    }
+
     nMosaic.puzzleComplete = nMosaic.solved();
     this.onChange();
+    // Strokes change the board, so re-check whether the shown hint still
+    // matches what getHint() would now return.
+    this.refreshHintExpiry();
   }
 
   startPaint(e) {
@@ -607,7 +786,12 @@ function nMosaicMain() {
 
   // All interaction (painting, palette, keyboard, wheel) lives in
   // NMosaicGameController so the test dashboard sandbox can reuse it.
-  new NMosaicGameController(renderer, nMosaic, canvas, paletteCanvas);
+  const gameController = new NMosaicGameController(
+    renderer,
+    nMosaic,
+    canvas,
+    paletteCanvas,
+  );
 
   function regenerate() {
     // An empty seed field means "surprise me": mint a fresh seed up front so
@@ -627,13 +811,20 @@ function nMosaicMain() {
       seed,
     );
     renderer.showSolution = false;
+    renderer.hintCells = [];
   }
 
   newPuzzleButton.onclick = regenerate;
+  // While a hint is displayed the highlight must expire as soon as
+  // getHint() starts answering differently; a slow poll is a safety net on
+  // top of the immediate check after each stroke.
+  let hintTick = 0;
   function gameLoop() {
     renderer.drawBackground(nMosaic);
     renderer.drawBoard(nMosaic);
     renderer.drawPalette(nMosaic);
+
+    if (++hintTick % 30 === 0) gameController.refreshHintExpiry();
 
     requestAnimationFrame(gameLoop);
   }
@@ -649,4 +840,13 @@ if (
   document.getElementById("n_mosaic_board") !== null
 ) {
   nMosaicMain();
+}
+
+// Expose the shared classes (same pattern as n_mosaic.js) so the vm sandbox
+// and other tooling can construct them without a browser.
+if (typeof window !== "undefined") {
+  const exposed = window;
+  exposed.SquareGridNMosaicRenderer = SquareGridNMosaicRenderer;
+  exposed.NMosaicGameController = NMosaicGameController;
+  exposed.sameHintCells = sameHintCells;
 }
