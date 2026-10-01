@@ -905,11 +905,16 @@ class NMosaic {
 
   getHint(): NMosaicCell[] {
     const techniques = [
-      this.solveSimpleRemainder,
-      this.solveLastCandidate,
-      this.solveSimpleCandidateRemainder,
-      this.solveSimpleSubsetRemainder,
-      this.solveTotalNeighbourhoodSum,
+      (nMOSAIC: NMosaic, isHint: boolean) =>
+        this.solveSimpleRemainder(nMOSAIC, isHint),
+      (nMOSAIC: NMosaic, isHint: boolean) =>
+        this.solveLastCandidate(nMOSAIC, isHint),
+      (nMOSAIC: NMosaic, isHint: boolean) =>
+        this.solveSimpleCandidateRemainder(nMOSAIC, isHint),
+      (nMOSAIC: NMosaic, isHint: boolean) =>
+        this.solveSimpleSubsetRemainder(nMOSAIC, isHint),
+      (nMOSAIC: NMosaic, isHint: boolean) =>
+        this.solveTotalNeighbourhoodSum(nMOSAIC, isHint),
     ];
 
     let hint: NMosaicCell[] = [];

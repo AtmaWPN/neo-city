@@ -609,11 +609,11 @@
     }
     getHint() {
       const techniques = [
-        this.solveSimpleRemainder,
-        this.solveLastCandidate,
-        this.solveSimpleCandidateRemainder,
-        this.solveSimpleSubsetRemainder,
-        this.solveTotalNeighbourhoodSum
+        (nMOSAIC, isHint) => this.solveSimpleRemainder(nMOSAIC, isHint),
+        (nMOSAIC, isHint) => this.solveLastCandidate(nMOSAIC, isHint),
+        (nMOSAIC, isHint) => this.solveSimpleCandidateRemainder(nMOSAIC, isHint),
+        (nMOSAIC, isHint) => this.solveSimpleSubsetRemainder(nMOSAIC, isHint),
+        (nMOSAIC, isHint) => this.solveTotalNeighbourhoodSum(nMOSAIC, isHint)
       ];
       let hint = [];
       for (const technique of techniques) {
