@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>N-Mosaic Test Dashboard</title>
+    <link href="../style.css" rel="stylesheet" type="text/css" media="all">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:ital,wght@0,100..700;1,100..700&display=swap" rel="stylesheet">
+    <style>
+      .nmt-panel {
+        border: 1px solid var(--line, #444);
+        padding: 0.5em 0.9em 0.9em;
+        margin: 1em 0;
+        max-width: 71em;
+      }
+      .nmt-panel h4 { margin: 0.4em 0; }
+      .nmt-controls { display: flex; flex-wrap: wrap; gap: 0.6em 1.2em; align-items: baseline; }
+      .nmt-controls label { display: inline-flex; gap: 0.4em; align-items: baseline; }
+      .nmt-controls input[type=number] { width: 4.5em; }
+      .nmt-controls input[type=checkbox] { width: auto; }
+      .nmt-buttons { display: flex; flex-wrap: wrap; gap: 0.7em; margin-top: 0.6em; }
+      .nmt-buttons button { padding: 0.1em 0.3em; border: 1px solid var(--line, #444); }
+      #nmt_progress { color: var(--string, #ccc); }
+      #nmt_tablewrap { max-height: 26em; overflow: auto; margin-top: 0.6em; }
+      table { border-collapse: collapse; font-size: 13px; }
+      th, td { border: 1px solid var(--line, #444); padding: 1px 6px; text-align: right; white-space: nowrap; }
+      th { position: sticky; top: 0; background: var(--background, #111); }
+      td.l, th.l { text-align: left; }
+      tr.total td { border-top: 2px solid var(--function, #dcdcaa); }
+      #nmt_log {
+        border: 1px solid var(--line, #444);
+        min-height: 6em; max-height: 20em; overflow: auto;
+        padding: 0.4em; margin-top: 0.6em; white-space: pre-wrap;
+        font-size: 13px;
+      }
+      .nmt-status { color: var(--string, #ccc); margin-top: 0.5em; }
+      .nmt-warn { color: #ff8080; }
+    </style>
+  </head>
+  <body class="page">
+    <h3>N-Mosaic Test Dashboard</h3>
+    <p>Generate puzzles en masse and inspect generation internals, or drive the solving techniques on a single board by hand. No links to this page are exposed anywhere on the site.</p>
+
+    <div class="nmt-panel">
+      <h4>Board Parameters</h4>
+      <div class="nmt-controls">
+        <label>Width <input type="number" id="nmt_width" value="10" min="2" max="32"></label>
+        <label>Height <input type="number" id="nmt_height" value="10" min="2" max="32"></label>
+        <label>Colors <input type="number" id="nmt_colors" value="3" min="2" max="8"></label>
+        <label>Shape Fraction <input type="number" id="nmt_fraction" value="0.8" min="0.05" max="1.0" step="0.05"></label>
+        <label>Difficulty
+          <select id="nmt_difficulty">
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+            <option value="expert">Expert</option>
+            <option value="grandmaster">Grandmaster</option>
+            <option value="sat">Deep Blue</option>
+            <option value="random">Random</option>
+          </select>
+        </label>
+      </div>
+    </div>
+
+    <div class="nmt-panel">
+      <h4>Batch Generation</h4>
+      <div class="nmt-controls">
+        <label>Puzzles <input type="number" id="nmt_count" value="10" min="1" max="1000"></label>
+        <label><input type="checkbox" id="nmt_verify"> verify final puzzle with techniques (hard set)</label>
+      </div>
+      <div class="nmt-controls">
+        <span>Generate with:</span>
+        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_preset" value="preset" checked> difficulty preset</label>
+        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_techniques" value="techniques"> custom techniques</label>
+        <label><input type="radio" name="nmt_genmethod" id="nmt_gen_sat" value="sat"> sat backward</label>
+      </div>
+      <div class="nmt-controls" id="nmt_gentech_row">
+        <span>Gen techniques:</span>
+        <label><input type="checkbox" id="nmt_gtech_SimpleRemainder" checked> Simple Remainder</label>
+        <label><input type="checkbox" id="nmt_gtech_LastCandidate" checked> Last Candidate</label>
+        <label><input type="checkbox" id="nmt_gtech_SimpleCandidateRemainder" checked> Simple Candidates Remainder</label>
+        <label><input type="checkbox" id="nmt_gtech_SimpleSubsetRemainder"> Simple Subset Remainder</label>
+        <label><input type="checkbox" id="nmt_gtech_TotalNeighbourhoodSum"> Total Neighbourhood Sum</label>
+      </div>
+      <div class="nmt-controls">
+        <span>Solve with:</span>
+        <label><input type="radio" name="nmt_solvemethod" id="nmt_solve_sat" value="sat" checked> SAT (unique solution)</label>
+        <label><input type="radio" name="nmt_solvemethod" id="nmt_solve_techniques" value="techniques"> techniques</label>
+      </div>
+      <div class="nmt-controls" id="nmt_stech_row">
+        <span>Solve techniques:</span>
+        <label><input type="checkbox" id="nmt_stech_SimpleRemainder" checked> Simple Remainder</label>
+        <label><input type="checkbox" id="nmt_stech_LastCandidate" checked> Last Candidate</label>
+        <label><input type="checkbox" id="nmt_stech_SimpleCandidateRemainder" checked> Simple Candidates Remainder</label>
+        <label><input type="checkbox" id="nmt_stech_SimpleSubsetRemainder" checked> Simple Subset Remainder</label>
+        <label><input type="checkbox" id="nmt_stech_TotalNeighbourhoodSum" checked> Total Neighbourhood Sum</label>
+      </div>
+      <div class="nmt-status nmt-warn" id="nmt_methodwarn"></div>
+      <div class="nmt-buttons">
+        <button id="nmt_start" class="function">Run Batch()</button>
+        <button id="nmt_cancel" class="function">Cancel()</button>
+        <button id="nmt_csv" class="function">Download CSV()</button>
+        <button id="nmt_csvcopy" class="function">Copy CSV()</button>
+        <button id="nmt_clear" class="function">Clear Table()</button>
+        <span id="nmt_progress"></span>
+      </div>
+      <div class="nmt-status" id="nmt_batchstatus"></div>
+      <div id="nmt_tablewrap">
+        <table id="nmt_table"></table>
+      </div>
+    </div>
+
+    <div class="nmt-panel">
+      <h4>Generation Benchmark</h4>
+      <p class="nmt-status">
+        Runs the preset generators for the board sizes and difficulties selected below a configurable
+        number of times (Runs per cell) each, then averages the wall-clock generation time per
+        difficulty&times;size. Colors and Shape Fraction come from the Board Parameters panel.
+        expert, grandmaster and 20&times;20 are the slowest options (unchecked by default), so keep
+        Cancel() handy.
+      </p>
+      <div class="nmt-controls">
+        <label>Runs per cell <input type="number" id="nmt_bench_runs" value="100" min="1" max="100000"></label>
+      </div>
+      <div class="nmt-controls">
+        <span>Board sizes to run:</span>
+        <label><input type="checkbox" id="nmt_bench_size_5" checked> 5&times;5</label>
+        <label><input type="checkbox" id="nmt_bench_size_10" checked> 10&times;10</label>
+        <label><input type="checkbox" id="nmt_bench_size_15" checked> 15&times;15</label>
+        <label><input type="checkbox" id="nmt_bench_size_20"> 20&times;20</label>
+      </div>
+      <div class="nmt-controls">
+        <span>Difficulties to run:</span>
+        <label><input type="checkbox" id="nmt_bench_beginner" checked> Beginner</label>
+        <label><input type="checkbox" id="nmt_bench_intermediate" checked> Intermediate</label>
+        <label><input type="checkbox" id="nmt_bench_advanced" checked> Advanced</label>
+        <label><input type="checkbox" id="nmt_bench_expert"> Expert</label>
+        <label><input type="checkbox" id="nmt_bench_grandmaster"> Grandmaster</label>
+        <label><input type="checkbox" id="nmt_bench_random" checked> Random</label>
+      </div>
+      <div class="nmt-buttons">
+        <button id="nmt_bench_start" class="function">Run Benchmark()</button>
+        <button id="nmt_bench_cancel" class="function">Cancel()</button>
+        <span id="nmt_bench_progress"></span>
+      </div>
+      <div class="nmt-status" id="nmt_benchstatus"></div>
+      <table id="nmt_benchtable"></table>
+    </div>
+
+    <div class="nmt-panel">
+      <h4 style="display: flex; align-items: baseline; gap: 0.5em;">Manual Sandbox
+        <button id="nmt_toggle_manual" class="function" style="padding: 0.05em 0.5em; font-size: 12px;">Hide()</button>
+      </h4>
+      <div id="nmt_manual_body" style="display: none;">
+      <div class="nmt-controls">
+        <label>Generator
+          <select id="nmt_manual_genmethod">
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+            <option value="expert">Expert</option>
+            <option value="grandmaster">Grandmaster</option>
+            <option value="random">Random</option>
+            <option value="custom techniques">custom techniques</option>
+          </select>
+        </label>
+        <label>Seed <input type="number" id="nmt_manual_seed" value="" min="0" max="4294967295" step="1" placeholder="random"></label>
+        <button id="nmt_manual_newseed" class="function" style="padding: 0.05em 0.5em; font-size: 12px;">New Seed()</button>
+      </div>
+      <div class="nmt-controls" id="nmt_manual_tech_row">
+        <span>Gen techniques:</span>
+        <label><input type="checkbox" id="nmt_mtech_SimpleRemainder" checked> Simple Remainder</label>
+        <label><input type="checkbox" id="nmt_mtech_LastCandidate" checked> Last Candidate</label>
+        <label><input type="checkbox" id="nmt_mtech_SimpleCandidateRemainder" checked> Simple Candidates Remainder</label>
+        <label><input type="checkbox" id="nmt_mtech_SimpleSubsetRemainder" checked> Simple Subset Remainder</label>
+        <label><input type="checkbox" id="nmt_mtech_TotalNeighbourhoodSum" checked> Total Neighbourhood Sum</label>
+      </div>
+      <div class="nmt-buttons">
+        <button id="nmt_manual_generate" class="function">Generate()</button>
+        <button id="nmt_reset" class="function">Reset Guesses()</button>
+        <button id="nmt_solution" class="function">Show Solution()</button>
+      </div>
+      <div style="display: flex; gap: 4px; margin-top: 0.6em;">
+        <canvas id="nmt_board" width="576" height="576"></canvas>
+        <canvas id="nmt_palette" width="72" height="576"></canvas>
+      </div>
+      <h4 style="margin-top: 1em;">Apply Techniques</h4>
+      <div class="nmt-buttons">
+        <button data-tech="SimpleRemainder" class="function">Simple Remainder</button>
+        <button data-tech="LastCandidate" class="function">Last Candidate</button>
+        <button data-tech="SimpleCandidateRemainder" class="function">Simple Candidates Remainder</button>
+        <button data-tech="SimpleSubsetRemainder" class="function">Simple Subset Remainder</button>
+        <button data-tech="TotalNeighbourhoodSum" class="function">Total Neighbourhood Sum</button>
+        <button id="nmt_solveall" class="function">Solve All (hard set, fixpoint)</button>
+      </div>
+      <div class="nmt-status" id="nmt_manualstatus"></div>
+      <div id="nmt_log"></div>
+      </div>
+    </div>
+
+    <script src="../SATjs-master/SAT.js"></script>
+    <script src="../SATjs-master/SAT_worker.js"></script>
+    <script src="../SATjs-master/helpers.js"></script>
+    <script src="../helpers/seedrandom.js"></script>
+    <script src="n_mosaic.js"></script>
+    <script src="n_mosaic_game.js"></script>
+    <script src="n_mosaic_test.js"></script>
+  </body>
+</html>

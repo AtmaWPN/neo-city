@@ -1,0 +1,6 @@
+{
+  "compilerOptions": {
+    /* Target & Environment */
+    "target": "ESNext"
+  }
+}
