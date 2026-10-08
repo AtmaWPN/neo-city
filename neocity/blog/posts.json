@@ -1,6 +1,15 @@
 {
     "posts": [
     {
+      "title": "One year older",
+      "year": 2026,
+      "month": 10,
+      "day": 7,
+      "subtitle": "and wiser, too.",
+      "encrypted": false,
+      "content": "<p>It's my birthday today. Last year on my birthday I wrote a post about how I felt like I hadn't accomplished anything, so I'm going to list things that I've accomplished since then. I built Caerostris (my new 3D printer). I made N-Mosaic. I changed the oil in my motorcycle. I made a 3D-printed nerf blaster. I got a new phone. I made a new grocery list app for my new phone. My perspective has shifted about accomplishments. These days I feel like doing anything at all is good enough, because the things I make continue to exist after I stop working on them. The things I make are a part of me and as long as they persist, I can rest assured that I am a better person than I was. I've been very worried about going in loops this year but as long as I make things I can't end up back where I started because the things I made will always be a part of who I am.</p><p>It's sort of weird to have a birthday now that I'm an adult. People seem to expect that I will feel more excited about it than I do. I used to say that if people didn't remind me of my birthday I'd forget when it is, but now I see this as cope. I just don't like that people have expectations of me on my birthday. I've never liked performing the \"birthday boy\" role. I do actually like remembering my birthday, but as a day of quiet reflection rather than celebration. I did sort of get myself a birthday present: I bought a Steam Frame. It won't arrive for a week or two, which will give me plenty of time to finish my outstanding projects. The two projects I want to get done before I get the Steam Frame are Caerostris (it can print but there are a few extras to finish up), and \"The Problem with VR\" which is an essay I'm planning to write about the state of VR gaming and VR content.</p>"
+    },
+    {
       "title": "Steam Frame insanity",
 			"year": 2026,
 			"month": 9,
