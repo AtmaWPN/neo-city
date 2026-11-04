@@ -1,6 +1,15 @@
 {
     "posts": [
     {
+      "title": "I'm going to do more game jams.",
+      "year": 2026,
+      "month": 11,
+      "day": 4,
+      "subtitle": null,
+      "encrypted": false,
+      "content": "<p>I did a game jam with Abrar this weekend, we didn't finish the game but I think it went alright. My main goals were to shake the rust off my Godot skills and stoke Abrar's interest in game dev. I definitely succeeded in the first part, but only time will tell for the second. Abrar came up with the game idea we went with and I was really impressed by her ability to come up with game ideas. The theme was \"Unexpected Guest\" and the idea was a management game where you send monsters into buildings to haunt them. I came up with a neat system for resolving a haunting where one of the monster's stats determined which of the other two stats would be used to gain haunting points. It was kind of inspired by the \"Scream, Stomp, and Strike\" system from Dragonwood. We didn't get to the game design stage of development so we didn't really explore the idea much, but I'm still proud of it and I'll probably use the idea elsewhere in the future. I want to make some libraries/utilities for future game jams to make a lot of the menu and ui boilerplate easier. I spent a ton of time (relatively speaking) just on dynamically displaying monsters and moving them around, and this is something that I can imagine having to do in a lot of different games. I think I might do more game jams in the future in order to test these libraries. It would be cool to apply the software engineering approaches I've learned at work to make me a better game dev.</p><p>VR games are pretty cool. So far I've played Half Life: Alyx, Superhot, Beat Saber, and H3VR, and I'm currently playing The Last Clockwinder. I have a lot of games on my list, but I'm taking it slow because I'm pretty busy otherwise. At some point I plan on trying my hand at VR game dev. It seems to me that a lot of VR games are just flatscreen games that were made to work in vr for publicity. A truly great VR game must be a game that is impossible to replicate as a flatscreen game.</p>"
+    },
+    {
       "title": "\"The Problem with VR\"",
       "year": 2026,
       "month": 10,
